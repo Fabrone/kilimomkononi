@@ -1,0 +1,12 @@
+ 
+# Flutter/Dart files 
+.dart_tool/ 
+.flutter-plugins 
+.flutter-plugins-dependencies 
+.idea/ 
+build/ 
+*.iml 
+# Firebase sensitive files 
+android/app/google-services.json 
+# Local config 
+.vscode/ 
