@@ -1,9 +1,10 @@
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 import 'package:kilimomkononi/models/user_model.dart';
+import 'package:kilimomkononi/data/kenya_locations.dart'; 
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -18,51 +19,48 @@ class RegistrationScreenState extends State<RegistrationScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _nationalIdController = TextEditingController();
-  final TextEditingController _farmLocationController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
-  final TextEditingController _dateOfBirthController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final logger = Logger(
-    printer: PrettyPrinter(),
-  );
+  final logger = Logger(printer: PrettyPrinter());
 
-  String? _email;
-  String? _password;
   String? _fullName;
-  String? _nationalId;
-  String? _farmLocation;
+  String? _email;
   String? _phoneNumber;
-  String? _gender;
-  String? _dateOfBirth;
+  String? _password;
+  String? _county;
+  String? _constituency;
+  String? _ward;
   bool _isLoading = false;
-bool _obscurePassword = true; 
+  bool _obscurePassword = true;
+
+  List<String> _currentConstituencies = [];
+  List<String> _currentWards = [];
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
-    _nationalIdController.dispose();
-    _farmLocationController.dispose();
     _phoneNumberController.dispose();
-    _dateOfBirthController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        _dateOfBirth = DateFormat('yyyy-MM-dd').format(picked);
-        _dateOfBirthController.text = _dateOfBirth!;
-      });
-    }
+  void _updateConstituencies(String? county) {
+    setState(() {
+      _county = county;
+      _currentConstituencies = county != null ? kenyaLocations[county] ?? [] : [];
+      _constituency = null; // Reset constituency when county changes
+      _currentWards = []; // Reset wards when county changes
+      _ward = null;
+    });
+  }
+
+  void _updateWards(String? constituency) {
+    setState(() {
+      _constituency = constituency;
+      _currentWards = constituency != null ? constituencyWards[constituency] ?? [] : [];
+      _ward = null; // Reset ward when constituency changes
+    });
   }
 
   @override
@@ -71,7 +69,6 @@ bool _obscurePassword = true;
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Background Image
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -104,9 +101,7 @@ bool _obscurePassword = true;
                     decoration: InputDecoration(
                       labelText: 'Full Name',
                       hintText: 'Enter your full name',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.grey[200],
                     ),
@@ -127,9 +122,7 @@ bool _obscurePassword = true;
                     decoration: InputDecoration(
                       labelText: 'Email',
                       hintText: 'Enter your email address',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.grey[200],
                     ),
@@ -144,50 +137,61 @@ bool _obscurePassword = true;
                     },
                   ),
                   const SizedBox(height: 15.0),
-                  // National ID Field
-                  TextFormField(
-                    controller: _nationalIdController,
+                  // County Dropdown
+                  DropdownButtonFormField<String>(
                     decoration: InputDecoration(
-                      labelText: 'National ID Number',
-                      hintText: 'Enter your national ID number',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                      ),
+                      labelText: 'County',
+                      hintText: 'Select your county',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.grey[200],
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your national ID number';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) {
-                      _nationalId = value;
-                    },
+                    value: _county,
+                    items: kenyaLocations.keys.map((county) => DropdownMenuItem(
+                      value: county,
+                      child: Text(county),
+                    )).toList(),
+                    onChanged: _updateConstituencies,
+                    validator: (value) => value == null ? 'Please select a county' : null,
+                    onSaved: (value) => _county = value,
                   ),
                   const SizedBox(height: 15.0),
-                  // Farm Location Field
-                  TextFormField(
-                    controller: _farmLocationController,
+                  // Constituency Dropdown
+                  DropdownButtonFormField<String>(
                     decoration: InputDecoration(
-                      labelText: 'Farm Location',
-                      hintText: 'Enter your farm location',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                      ),
+                      labelText: 'Constituency',
+                      hintText: 'Select your constituency',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.grey[200],
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your farm location';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) {
-                      _farmLocation = value;
-                    },
+                    value: _constituency,
+                    items: _currentConstituencies.map((constituency) => DropdownMenuItem(
+                      value: constituency,
+                      child: Text(constituency),
+                    )).toList(),
+                    onChanged: _updateWards,
+                    validator: (value) => value == null ? 'Please select a constituency' : null,
+                    onSaved: (value) => _constituency = value,
+                  ),
+                  const SizedBox(height: 15.0),
+                  // Ward Dropdown
+                  DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      labelText: 'Ward',
+                      hintText: 'Select your ward',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
+                      filled: true,
+                      fillColor: Colors.grey[200],
+                    ),
+                    value: _ward,
+                    items: _currentWards.map((ward) => DropdownMenuItem(
+                      value: ward,
+                      child: Text(ward),
+                    )).toList(),
+                    onChanged: (value) => setState(() => _ward = value),
+                    validator: (value) => value == null ? 'Please select a ward' : null,
+                    onSaved: (value) => _ward = value,
                   ),
                   const SizedBox(height: 15.0),
                   // Phone Number Field
@@ -196,9 +200,7 @@ bool _obscurePassword = true;
                     decoration: InputDecoration(
                       labelText: 'Phone Number',
                       hintText: 'Enter your phone number',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.grey[200],
                     ),
@@ -213,74 +215,22 @@ bool _obscurePassword = true;
                     },
                   ),
                   const SizedBox(height: 15.0),
-                  // Gender Dropdown (Optional)
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'Gender',
-                      hintText: 'Select your gender (optional)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[200],
-                    ),
-                    value: _gender,
-                    items: ['Male', 'Female', 'Prefer not to say']
-                        .map((gender) => DropdownMenuItem(
-                              value: gender,
-                              child: Text(gender),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _gender = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 15.0),
-                  // Date of Birth Field (Optional)
-                  TextFormField(
-                    controller: _dateOfBirthController,
-                    decoration: InputDecoration(
-                      labelText: 'Date of Birth',
-                      hintText: 'Select your date of birth (optional)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[200],
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.calendar_today),
-                        onPressed: () => _selectDate(context),
-                      ),
-                    ),
-                    readOnly: true,
-                    onTap: () => _selectDate(context),
-                  ),
-                  const SizedBox(height: 15.0),
-                  //  Password TextFormField updated version
+                  // Password Field
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: _obscurePassword,  
+                    obscureText: _obscurePassword,
                     decoration: InputDecoration(
                       labelText: 'Password',
                       hintText: 'Enter your password',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.grey[200],
-                      // Add suffix icon for password visibility toggle
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword ? Icons.visibility_off : Icons.visibility,
                           color: Colors.grey[600],
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
                     ),
                     validator: (value) {
@@ -298,17 +248,17 @@ bool _obscurePassword = true;
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : () {
-                        if (_formKey.currentState!.validate()) {
-                          _formKey.currentState!.save();
-                          _signUp();
-                        }
-                      },
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              if (_formKey.currentState!.validate()) {
+                                _formKey.currentState!.save();
+                                _signUp();
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30.0),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.0)),
                         padding: const EdgeInsets.symmetric(vertical: 15.0),
                       ),
                       child: _isLoading
@@ -320,12 +270,10 @@ bool _obscurePassword = true;
                     ),
                   ),
                   const SizedBox(height: 10.0),
-                  // Log In Button
+                  // Login Link
                   Center(
                     child: TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pushReplacementNamed('/login');
-                      },
+                      onPressed: () => Navigator.of(context).pushReplacementNamed('/login'),
                       child: const Text(
                         'Already have an account? Log In',
                         style: TextStyle(color: Colors.teal),
@@ -342,9 +290,7 @@ bool _obscurePassword = true;
   }
 
   Future<void> _signUp() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       // Create user with email and password
@@ -353,39 +299,33 @@ bool _obscurePassword = true;
         password: _password!,
       );
 
-      // Create User model instance
+      // Create AppUser instance
       final appUser = AppUser(
         id: userCredential.user!.uid,
         fullName: _fullName!,
         email: _email!,
-        nationalId: _nationalId!,
-        farmLocation: _farmLocation!,
+        county: _county!,
+        constituency: _constituency!,
+        ward: _ward!,
         phoneNumber: _phoneNumber!,
-        gender: _gender ?? '-',
-        dateOfBirth: _dateOfBirth ?? '-',
       );
 
-      // Save user data to Firestore
+      // Save to Firestore
       await _firestore.collection('Users').doc(appUser.id).set(appUser.toMap());
 
       if (!mounted) return;
 
-      // Show success message
+      // Success message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sign up successful. Welcome, $_fullName!'),
-        ),
+        SnackBar(content: Text('Sign up successful. Welcome, $_fullName!')),
       );
 
-      // Navigate to the home screen
+      // Navigate to home
       Navigator.of(context).pushReplacementNamed('/home');
     } catch (e) {
       if (!mounted) return;
 
-      // Print the actual error to the console
       logger.e('Error during sign up: $e');
-
-      // Show specific error message
       String errorMessage;
       if (e is FirebaseAuthException) {
         switch (e.code) {
@@ -406,14 +346,10 @@ bool _obscurePassword = true;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-        ),
+        SnackBar(content: Text(errorMessage)),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 }

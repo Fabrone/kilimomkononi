@@ -1,3 +1,4 @@
+// lib/screens/user_profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:io';
 import 'dart:convert';
-import 'package:kilimomkononi/models/user_model.dart'; 
+import 'package:kilimomkononi/models/user_model.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -18,13 +19,12 @@ class UserProfileScreenState extends State<UserProfileScreen> {
   final User? user = FirebaseAuth.instance.currentUser;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _nationalIdController = TextEditingController();
-  final TextEditingController _farmLocationController = TextEditingController();
+  final TextEditingController _countyController = TextEditingController();
+  final TextEditingController _constituencyController = TextEditingController();
+  final TextEditingController _wardController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
-  final TextEditingController _genderController = TextEditingController();
-  final TextEditingController _dateOfBirthController = TextEditingController();
   File? _imageFile;
-  String? _currentPhotoUrl; // Will now store Base64 string
+  String? _currentPhotoUrl; // Stores Base64 string
   bool _isLoading = false;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ImagePicker _picker = ImagePicker();
@@ -50,11 +50,10 @@ class UserProfileScreenState extends State<UserProfileScreen> {
         setState(() {
           _nameController.text = appUser.fullName;
           _emailController.text = appUser.email;
-          _nationalIdController.text = appUser.nationalId;
-          _farmLocationController.text = appUser.farmLocation;
+          _countyController.text = appUser.county;
+          _constituencyController.text = appUser.constituency;
+          _wardController.text = appUser.ward;
           _phoneNumberController.text = appUser.phoneNumber;
-          _genderController.text = appUser.gender;
-          _dateOfBirthController.text = appUser.dateOfBirth;
           _currentPhotoUrl = appUser.profileImage; // Base64 string or null
         });
       }
@@ -136,11 +135,10 @@ class UserProfileScreenState extends State<UserProfileScreen> {
         id: user!.uid,
         fullName: _nameController.text,
         email: _emailController.text,
-        nationalId: _nationalIdController.text,
-        farmLocation: _farmLocationController.text,
+        county: _countyController.text,
+        constituency: _constituencyController.text,
+        ward: _wardController.text,
         phoneNumber: _phoneNumberController.text,
-        gender: _genderController.text,
-        dateOfBirth: _dateOfBirthController.text,
         profileImage: photoBase64 ?? _currentPhotoUrl, // Use new or existing Base64
       );
 
@@ -244,8 +242,8 @@ class UserProfileScreenState extends State<UserProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('User Profile'),
-          backgroundColor: const Color.fromARGB(255, 3, 39, 4), 
-          foregroundColor: Colors.white,
+        backgroundColor: const Color.fromARGB(255, 3, 39, 4),
+        foregroundColor: Colors.white,
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: _userStream,
@@ -295,20 +293,18 @@ class UserProfileScreenState extends State<UserProfileScreen> {
                 const SizedBox(height: 16),
                 _buildEditableField(_emailController, 'Email', Icons.email),
                 const SizedBox(height: 16),
-                _buildEditableField(_nationalIdController, 'National ID', Icons.credit_card),
+                _buildEditableField(_countyController, 'County', Icons.location_city),
                 const SizedBox(height: 16),
-                _buildEditableField(_farmLocationController, 'Farm Location', Icons.location_on),
+                _buildEditableField(_constituencyController, 'Constituency', Icons.map),
+                const SizedBox(height: 16),
+                _buildEditableField(_wardController, 'Ward', Icons.place),
                 const SizedBox(height: 16),
                 _buildEditableField(_phoneNumberController, 'Phone Number', Icons.phone),
-                const SizedBox(height: 16),
-                _buildEditableField(_genderController, 'Gender', Icons.person_outline),
-                const SizedBox(height: 16),
-                _buildEditableField(_dateOfBirthController, 'Date of Birth', Icons.cake),
                 const SizedBox(height: 32),
                 ElevatedButton(
                   onPressed: _isLoading ? null : () => _updateProfile(),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 3, 39, 4), 
+                    backgroundColor: const Color.fromARGB(255, 3, 39, 4),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 30),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),

@@ -1,41 +1,39 @@
+// lib/models/user_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppUser {
   final String id;
   final String fullName;
   final String email;
-  final String nationalId;
-  final String farmLocation;
+  final String county;
+  final String constituency;
+  final String ward;
   final String phoneNumber;
-  final String gender;
-  final String dateOfBirth;
-  final String? profileImage; 
-  final bool isDisabled; 
+  final String? profileImage;
+  final bool isDisabled;
 
   AppUser({
     required this.id,
     required this.fullName,
     required this.email,
-    required this.nationalId,
-    required this.farmLocation,
+    required this.county,
+    required this.constituency,
+    required this.ward,
     required this.phoneNumber,
-    required this.gender,
-    required this.dateOfBirth,
     this.profileImage,
-    this.isDisabled = false, 
+    this.isDisabled = false,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'fullName': fullName,
       'email': email,
-      'nationalId': nationalId,
-      'farmLocation': farmLocation,
+      'county': county,
+      'constituency': constituency,
+      'ward': ward,
       'phoneNumber': phoneNumber,
-      'gender': gender,
-      'dateOfBirth': dateOfBirth,
       'profileImage': profileImage,
-      'isDisabled': isDisabled, 
+      'isDisabled': isDisabled,
     };
   }
 
@@ -45,13 +43,12 @@ class AppUser {
       id: snapshot.id,
       fullName: data?['fullName'] ?? '',
       email: data?['email'] ?? '',
-      nationalId: data?['nationalId'] ?? '',
-      farmLocation: data?['farmLocation'] ?? '',
+      county: data?['county'] ?? '',
+      constituency: data?['constituency'] ?? '',
+      ward: data?['ward'] ?? '',
       phoneNumber: data?['phoneNumber'] ?? '',
-      gender: data?['gender'] ?? '-',
-      dateOfBirth: data?['dateOfBirth'] ?? '-',
       profileImage: data?['profileImage'] as String?,
-      isDisabled: data?['isDisabled'] as bool? ?? false, 
+      isDisabled: data?['isDisabled'] as bool? ?? false,
     );
   }
 }
