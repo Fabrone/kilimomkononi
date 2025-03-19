@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:kilimomkononi/home.dart'; 
+import 'package:kilimomkononi/home.dart';
 
 class FarmManagementScreen extends StatefulWidget {
   const FarmManagementScreen({super.key});
@@ -11,7 +11,8 @@ class FarmManagementScreen extends StatefulWidget {
   State<FarmManagementScreen> createState() => _FarmManagementScreenState();
 }
 
-class _FarmManagementScreenState extends State<FarmManagementScreen> with SingleTickerProviderStateMixin {
+class _FarmManagementScreenState extends State<FarmManagementScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late SharedPreferences _prefs;
   bool _isLoading = true;
@@ -92,22 +93,29 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
   void _loadCycleData(String cycle) {
     setState(() {
       _labourActivities = (_prefs.getString('labourActivities_$cycle') != null)
-          ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('labourActivities_$cycle')!))
+          ? List<Map<String, dynamic>>.from(
+              jsonDecode(_prefs.getString('labourActivities_$cycle')!))
           : [];
       _mechanicalCosts = (_prefs.getString('mechanicalCosts_$cycle') != null)
-          ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('mechanicalCosts_$cycle')!))
+          ? List<Map<String, dynamic>>.from(
+              jsonDecode(_prefs.getString('mechanicalCosts_$cycle')!))
           : [];
       _inputCosts = (_prefs.getString('inputCosts_$cycle') != null)
-          ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('inputCosts_$cycle')!))
+          ? List<Map<String, dynamic>>.from(
+              jsonDecode(_prefs.getString('inputCosts_$cycle')!))
           : [];
-      _miscellaneousCosts = (_prefs.getString('miscellaneousCosts_$cycle') != null)
-          ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('miscellaneousCosts_$cycle')!))
-          : [];
+      _miscellaneousCosts =
+          (_prefs.getString('miscellaneousCosts_$cycle') != null)
+              ? List<Map<String, dynamic>>.from(
+                  jsonDecode(_prefs.getString('miscellaneousCosts_$cycle')!))
+              : [];
       _revenues = (_prefs.getString('revenues_$cycle') != null)
-          ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('revenues_$cycle')!))
+          ? List<Map<String, dynamic>>.from(
+              jsonDecode(_prefs.getString('revenues_$cycle')!))
           : [];
       _paymentHistory = (_prefs.getString('paymentHistory_$cycle') != null)
-          ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('paymentHistory_$cycle')!))
+          ? List<Map<String, dynamic>>.from(
+              jsonDecode(_prefs.getString('paymentHistory_$cycle')!))
           : [];
       _loadLoanData(cycle);
       _calculateTotalProductionCost();
@@ -135,7 +143,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
 
   void _calculateProfitLoss() {
     double totalCost = double.tryParse(_totalProductionCostController.text) ?? 0;
-    double totalRevenue = _revenues.fold(0, (sum, rev) => sum + (double.tryParse(rev['amount'] ?? '0') ?? 0));
+    double totalRevenue = _revenues.fold(
+        0, (sum, rev) => sum + (double.tryParse(rev['amount'] ?? '0') ?? 0));
     double profitLoss = totalRevenue - totalCost;
     _profitLossController.text = profitLoss.toStringAsFixed(2);
   }
@@ -146,25 +155,31 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
     double interest = (loanAmount * interestRate) / 100;
     double totalRepayment = loanAmount + interest;
 
-    double paymentsMade = _paymentHistory.fold(0.0, (sum, payment) => 
-      sum + (double.tryParse(payment['amount'] ?? '0') ?? 0));
+    double paymentsMade = _paymentHistory.fold(
+        0.0,
+        (sum, payment) =>
+            sum + (double.tryParse(payment['amount'] ?? '0') ?? 0));
     double remainingBalance = totalRepayment - paymentsMade;
 
     _loanInterestController.text = interest.toStringAsFixed(2);
     _totalRepaymentController.text = totalRepayment.toStringAsFixed(2);
     _remainingBalanceController.text = remainingBalance.toStringAsFixed(2);
 
-    _saveLoanData(_currentCycle, loanAmount, interestRate, interest, totalRepayment, remainingBalance);
+    _saveLoanData(_currentCycle, loanAmount, interestRate, interest,
+        totalRepayment, remainingBalance);
   }
 
-  void _saveLoanData(String cycle, double loanAmount, double interestRate, double interest, double totalRepayment, double remainingBalance) {
-    _prefs.setString('loanData_$cycle', jsonEncode({
-      'loanAmount': loanAmount,
-      'interestRate': interestRate,
-      'interest': interest,
-      'totalRepayment': totalRepayment,
-      'remainingBalance': remainingBalance,
-    }));
+  void _saveLoanData(String cycle, double loanAmount, double interestRate,
+      double interest, double totalRepayment, double remainingBalance) {
+    _prefs.setString(
+        'loanData_$cycle',
+        jsonEncode({
+          'loanAmount': loanAmount,
+          'interestRate': interestRate,
+          'interest': interest,
+          'totalRepayment': totalRepayment,
+          'remainingBalance': remainingBalance,
+        }));
   }
 
   void _loadLoanData(String cycle) {
@@ -173,9 +188,13 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
       Map<String, dynamic> loanData = jsonDecode(savedLoanData);
       _loanAmountController.text = (loanData['loanAmount'] ?? 0).toString();
       _interestRateController.text = (loanData['interestRate'] ?? 0).toString();
-      _loanInterestController.text = (loanData['interest'] ?? 0).toStringAsFixed(2);
-      _totalRepaymentController.text = (loanData['totalRepayment'] ?? 0).toStringAsFixed(2);
-      _remainingBalanceController.text = (loanData['remainingBalance'] ?? (loanData['totalRepayment'] ?? 0)).toStringAsFixed(2);
+      _loanInterestController.text =
+          (loanData['interest'] ?? 0).toStringAsFixed(2);
+      _totalRepaymentController.text =
+          (loanData['totalRepayment'] ?? 0).toStringAsFixed(2);
+      _remainingBalanceController.text =
+          (loanData['remainingBalance'] ?? (loanData['totalRepayment'] ?? 0))
+              .toStringAsFixed(2);
     } else {
       _loanAmountController.clear();
       _interestRateController.clear();
@@ -187,7 +206,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
 
   void _recordPayment() {
     double paymentAmount = double.tryParse(_paymentAmountController.text) ?? 0;
-    double remainingBalance = double.tryParse(_remainingBalanceController.text) ?? 0;
+    double remainingBalance =
+        double.tryParse(_remainingBalanceController.text) ?? 0;
 
     if (paymentAmount > 0 && paymentAmount <= remainingBalance) {
       remainingBalance -= paymentAmount;
@@ -200,38 +220,48 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
       };
       setState(() {
         _paymentHistory.insert(0, newPayment);
-        _prefs.setString('paymentHistory_$_currentCycle', jsonEncode(_paymentHistory));
-        _saveLoanData(_currentCycle, 
-          double.tryParse(_loanAmountController.text) ?? 0,
-          double.tryParse(_interestRateController.text) ?? 0,
-          double.tryParse(_loanInterestController.text) ?? 0,
-          double.tryParse(_totalRepaymentController.text) ?? 0,
-          remainingBalance
-        );
+        _saveDataOnChange(); // Auto-save on payment
         _paymentAmountController.clear();
         _paymentDate = DateTime.now();
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid payment amount')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid payment amount')));
     }
   }
 
-  void _saveForm() {
+  void _saveDataOnChange() {
     _prefs.setString('labourActivities_$_currentCycle', jsonEncode(_labourActivities));
     _prefs.setString('mechanicalCosts_$_currentCycle', jsonEncode(_mechanicalCosts));
     _prefs.setString('inputCosts_$_currentCycle', jsonEncode(_inputCosts));
     _prefs.setString('miscellaneousCosts_$_currentCycle', jsonEncode(_miscellaneousCosts));
     _prefs.setString('revenues_$_currentCycle', jsonEncode(_revenues));
     _prefs.setString('paymentHistory_$_currentCycle', jsonEncode(_paymentHistory));
-    _saveLoanData(_currentCycle, 
-      double.tryParse(_loanAmountController.text) ?? 0,
-      double.tryParse(_interestRateController.text) ?? 0,
-      double.tryParse(_loanInterestController.text) ?? 0,
-      double.tryParse(_totalRepaymentController.text) ?? 0,
-      double.tryParse(_remainingBalanceController.text) ?? 0
-    );
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data Saved Successfully')));
-    _resetForm();
+    _saveLoanData(
+        _currentCycle,
+        double.tryParse(_loanAmountController.text) ?? 0,
+        double.tryParse(_interestRateController.text) ?? 0,
+        double.tryParse(_loanInterestController.text) ?? 0,
+        double.tryParse(_totalRepaymentController.text) ?? 0,
+        double.tryParse(_remainingBalanceController.text) ?? 0);
+  }
+
+  void _saveForm() {
+    if (_labourActivities.isEmpty &&
+        _mechanicalCosts.isEmpty &&
+        _inputCosts.isEmpty &&
+        _miscellaneousCosts.isEmpty &&
+        _revenues.isEmpty &&
+        _paymentHistory.isEmpty &&
+        _loanAmountController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter some data before saving')));
+    } else {
+      _saveDataOnChange();
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data Saved Successfully')));
+      _resetForm();
+    }
   }
 
   void _resetForm() {
@@ -255,21 +285,32 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
     });
   }
 
-  Future<void> _saveAndStartNewCycle() async {
+  Future<void> _startNewCycle() async {
     String? selectedCycleName;
+    String customCycleName = '';
     int? selectedYear;
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Save Current Cycle & Start New'),
+        title: const Text('Start New Cycle'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Cycle Name'),
-              items: _predefinedCycleNames.map((name) => DropdownMenuItem(value: name, child: Text(name))).toList(),
+              decoration: const InputDecoration(labelText: 'Predefined Cycle Name'),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Custom')),
+                ..._predefinedCycleNames
+                    .map((name) => DropdownMenuItem(value: name, child: Text(name)))
+                    
+              ],
               onChanged: (value) => selectedCycleName = value,
             ),
+            if (selectedCycleName == '')
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'Custom Cycle Name'),
+                onChanged: (value) => customCycleName = value,
+              ),
             TextFormField(
               decoration: const InputDecoration(labelText: 'Year'),
               keyboardType: TextInputType.number,
@@ -284,15 +325,19 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
           ),
           TextButton(
             onPressed: () {
-              if (selectedCycleName != null && selectedYear != null) {
-                String newCycleName = '$selectedCycleName $selectedYear';
+              if ((selectedCycleName != null && selectedYear != null) &&
+                  ((selectedCycleName!.isNotEmpty) || customCycleName.isNotEmpty)) {
+                String newCycleName = selectedCycleName!.isEmpty
+                    ? '$customCycleName $selectedYear'
+                    : '$selectedCycleName $selectedYear';
                 _saveCurrentCycle(newCycleName);
                 Navigator.pop(context);
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a cycle name and year')));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Please enter a cycle name and year')));
               }
             },
-            child: const Text('Save & Start New'),
+            child: const Text('Start New'),
           ),
         ],
       ),
@@ -301,14 +346,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
 
   void _saveCurrentCycle(String newCycleName) {
     setState(() {
-      _prefs.setString('labourActivities_$newCycleName', jsonEncode(_labourActivities));
-      _prefs.setString('mechanicalCosts_$newCycleName', jsonEncode(_mechanicalCosts));
-      _prefs.setString('inputCosts_$newCycleName', jsonEncode(_inputCosts));
-      _prefs.setString('miscellaneousCosts_$newCycleName', jsonEncode(_miscellaneousCosts));
-      _prefs.setString('revenues_$newCycleName', jsonEncode(_revenues));
-      _prefs.setString('paymentHistory_$newCycleName', jsonEncode(_paymentHistory));
-      _prefs.setString('loanData_$newCycleName', _prefs.getString('loanData_$_currentCycle') ?? '{}');
-
+      _saveDataOnChange(); // Save current cycle data before switching
       _pastCycles.add(newCycleName);
       _prefs.setStringList('pastCycles', _pastCycles);
 
@@ -349,8 +387,11 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Cycle Name', hintText: 'Select Cycle'),
-                items: _predefinedCycleNames.map((name) => DropdownMenuItem(value: name, child: Text(name))).toList(),
+                decoration:
+                    const InputDecoration(labelText: 'Cycle Name', hintText: 'Select Cycle'),
+                items: _predefinedCycleNames
+                    .map((name) => DropdownMenuItem(value: name, child: Text(name)))
+                    .toList(),
                 onChanged: (value) => selectedCycleName = value,
               ),
               TextFormField(
@@ -361,15 +402,15 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
               const SizedBox(height: 10),
               const Text('Recent Cycles:', style: TextStyle(fontWeight: FontWeight.bold)),
               ...recentCycles.map((cycle) => ListTile(
-                title: Text(cycle),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _retrievedCycle = cycle;
-                    _loadCycleData(cycle);
-                  });
-                },
-              )),
+                    title: Text(cycle),
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _retrievedCycle = cycle;
+                        _loadCycleData(cycle);
+                      });
+                    },
+                  )),
               const SizedBox(height: 10),
               TextField(
                 controller: searchController,
@@ -394,7 +435,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                                     _loadCycleData(closestMatch);
                                   });
                                 },
-                                child: Text('"$closestMatch"?', style: const TextStyle(color: Colors.blue)),
+                                child: Text('"$closestMatch"?',
+                                    style: const TextStyle(color: Colors.blue)),
                               ),
                             ],
                           ),
@@ -423,7 +465,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                     _loadCycleData(cycleToRetrieve);
                   });
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No such data found')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No such data found')));
                 }
               }
             },
@@ -472,7 +515,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                 Navigator.pop(context);
                 setState(() => _hasShownPopup = true);
               },
-              child: const Text('Got It', style: TextStyle(color: customGreen, fontWeight: FontWeight.bold)),
+              child: const Text('Got It',
+                  style: TextStyle(color: customGreen, fontWeight: FontWeight.bold)),
             ),
             TextButton(
               onPressed: () {
@@ -503,7 +547,10 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
   }
 
   List<String> _getEquipmentSuggestions() {
-    return _mechanicalCosts.map((cost) => cost['equipment'] as String).toSet().toList();
+    return _mechanicalCosts
+        .map((cost) => cost['equipment'] as String)
+        .toSet()
+        .toList();
   }
 
   List<String> _getInputSuggestions() {
@@ -512,6 +559,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
 
   Future<void> _editCycleName() async {
     String? selectedCycleName;
+    String customCycleName = '';
     int? selectedYear;
     await showDialog(
       context: context,
@@ -521,10 +569,20 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Cycle Name'),
-              items: _predefinedCycleNames.map((name) => DropdownMenuItem(value: name, child: Text(name))).toList(),
+              decoration: const InputDecoration(labelText: 'Predefined Cycle Name'),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Custom')),
+                ..._predefinedCycleNames
+                    .map((name) => DropdownMenuItem(value: name, child: Text(name)))
+                    
+              ],
               onChanged: (value) => selectedCycleName = value,
             ),
+            if (selectedCycleName == '')
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'Custom Cycle Name'),
+                onChanged: (value) => customCycleName = value,
+              ),
             TextFormField(
               decoration: const InputDecoration(labelText: 'Year'),
               keyboardType: TextInputType.number,
@@ -535,9 +593,12 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
         actions: [
           TextButton(
             onPressed: () {
-              if (selectedCycleName != null && selectedYear != null) {
+              if ((selectedCycleName != null && selectedYear != null) &&
+                  (selectedCycleName!.isNotEmpty || customCycleName.isNotEmpty)) {
                 setState(() {
-                  _currentCycle = '$selectedCycleName $selectedYear';
+                  _currentCycle = selectedCycleName!.isEmpty
+                      ? '$customCycleName $selectedYear'
+                      : '$selectedCycleName $selectedYear';
                   _prefs.setString('currentCycle', _currentCycle);
                   _prefs.setBool('isFirstLaunch', false);
                   _isFirstLaunch = false;
@@ -565,18 +626,10 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
             );
           },
         ),
-        title: Row(
-          children: [
-            Text(
-              _isFirstLaunch ? 'Please enter cycle name' : 'Farm Management - $_currentCycle',
-              style: const TextStyle(color: Colors.white),
-            ),
-            if (_isFirstLaunch)
-              IconButton(
-                icon: const Icon(Icons.edit, color: Colors.white),
-                onPressed: _editCycleName,
-              ),
-          ],
+        title: const Text(
+          'Farm Management',
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: customGreen,
         actions: [
@@ -605,9 +658,9 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
             onPressed: _saveForm,
           ),
           IconButton(
-            icon: const Icon(Icons.archive, color: Colors.white),
-            tooltip: 'Save & Start New Cycle',
-            onPressed: _saveAndStartNewCycle,
+            icon: const Icon(Icons.add_circle_outline, color: Colors.white),
+            tooltip: 'Start New Cycle',
+            onPressed: _startNewCycle,
           ),
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white),
@@ -638,9 +691,24 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      Text(
-                        'Dashboard - ${_retrievedCycle ?? _currentCycle}',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: customGreen),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Dashboard - ${_retrievedCycle ?? _currentCycle}',
+                            style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: customGreen),
+                          ),
+                          if (_isFirstLaunch)
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: customGreen),
+                              onPressed: () {
+                                _editCycleName();
+                              },
+                            ),
+                        ],
                       ),
                       SizedBox(
                         height: 200,
@@ -648,42 +716,83 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                           PieChartData(
                             sections: [
                               PieChartSectionData(
-                                value: _labourActivities.fold(0.0, (sum, item) => sum! + (double.tryParse(item['cost'] ?? '0') ?? 0)),
+                                value: _labourActivities.fold(
+                                    0.0,
+                                    (sum, item) =>
+                                        sum! +
+                                        (double.tryParse(item['cost'] ?? '0') ?? 0)),
                                 color: Colors.red,
                                 title: 'Labour',
                               ),
                               PieChartSectionData(
-                                value: _mechanicalCosts.fold(0.0, (sum, item) => sum! + (double.tryParse(item['cost'] ?? '0') ?? 0)),
+                                value: _mechanicalCosts.fold(
+                                    0.0,
+                                    (sum, item) =>
+                                        sum! +
+                                        (double.tryParse(item['cost'] ?? '0') ?? 0)),
                                 color: Colors.blue,
                                 title: 'Equipment',
                               ),
                               PieChartSectionData(
-                                value: _inputCosts.fold(0.0, (sum, item) => sum! + (double.tryParse(item['cost'] ?? '0') ?? 0)),
+                                value: _inputCosts.fold(
+                                    0.0,
+                                    (sum, item) =>
+                                        sum! +
+                                        (double.tryParse(item['cost'] ?? '0') ?? 0)),
                                 color: Colors.orange,
                                 title: 'Inputs',
                               ),
                               PieChartSectionData(
-                                value: _miscellaneousCosts.fold(0.0, (sum, item) => sum! + (double.tryParse(item['cost'] ?? '0') ?? 0)),
+                                value: _miscellaneousCosts.fold(
+                                    0.0,
+                                    (sum, item) =>
+                                        sum! +
+                                        (double.tryParse(item['cost'] ?? '0') ?? 0)),
                                 color: Colors.grey,
                                 title: 'Misc',
                               ),
                               PieChartSectionData(
-                                value: _revenues.fold(0.0, (sum, item) => sum! + (double.tryParse(item['amount'] ?? '0') ?? 0)),
+                                value: _revenues.fold(
+                                    0.0,
+                                    (sum, item) =>
+                                        sum! +
+                                        (double.tryParse(item['amount'] ?? '0') ?? 0)),
                                 color: Colors.green,
                                 title: 'Revenue',
                               ),
                               PieChartSectionData(
-                                value: (double.tryParse(_profitLossController.text) ?? 0).abs(),
-                                color: (double.tryParse(_profitLossController.text) ?? 0) >= 0 ? Colors.purple : Colors.grey,
-                                title: (double.tryParse(_profitLossController.text) ?? 0) >= 0 ? 'Profit' : 'Loss',
+                                value:
+                                    (double.tryParse(_profitLossController.text) ?? 0)
+                                        .abs(),
+                                color: (double.tryParse(_profitLossController.text) ??
+                                            0) >=
+                                        0
+                                    ? Colors.purple
+                                    : Colors.grey,
+                                title:
+                                    (double.tryParse(_profitLossController.text) ?? 0) >=
+                                            0
+                                        ? 'Profit'
+                                        : 'Loss',
                               ),
                             ],
                           ),
                         ),
                       ),
-                      Card(child: ListTile(title: const Text('Total Costs'), subtitle: Text('KSH ${_totalProductionCostController.text}'))),
-                      Card(child: ListTile(title: const Text('Total Revenue'), subtitle: Text('KSH ${_revenues.fold(0.0, (sum, item) => sum + (double.tryParse(item['amount'] ?? '0') ?? 0)).toStringAsFixed(2)}'))),
-                      Card(child: ListTile(title: const Text('Profit/Loss'), subtitle: Text('KSH ${_profitLossController.text}'))),
+                      Card(
+                          child: ListTile(
+                              title: const Text('Total Costs'),
+                              subtitle:
+                                  Text('KSH ${_totalProductionCostController.text}'))),
+                      Card(
+                          child: ListTile(
+                              title: const Text('Total Revenue'),
+                              subtitle: Text(
+                                  'KSH ${_revenues.fold(0.0, (sum, item) => sum + (double.tryParse(item['amount'] ?? '0') ?? 0)).toStringAsFixed(2)}'))),
+                      Card(
+                          child: ListTile(
+                              title: const Text('Profit/Loss'),
+                              subtitle: Text('KSH ${_profitLossController.text}'))),
                     ],
                   ),
                 ),
@@ -697,7 +806,9 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             children: [
-                              const Text('Labour Costs', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              const Text('Labour Costs',
+                                  style:
+                                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                               TextFormField(
                                 controller: _labourActivityController,
                                 decoration: const InputDecoration(
@@ -709,11 +820,14 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                               ),
                               TextFormField(
                                 controller: _labourCostController,
-                                decoration: const InputDecoration(labelText: 'Cost (KSH)', prefixIcon: Icon(Icons.currency_exchange)),
+                                decoration: const InputDecoration(
+                                    labelText: 'Cost (KSH)',
+                                    prefixIcon: Icon(Icons.currency_exchange)),
                                 keyboardType: TextInputType.number,
                               ),
                               ListTile(
-                                title: Text('Date: ${_labourActivityDate.toString().substring(0, 10)}'),
+                                title: Text(
+                                    'Date: ${_labourActivityDate.toString().substring(0, 10)}'),
                                 trailing: const Icon(Icons.calendar_today),
                                 onTap: () async {
                                   DateTime? picked = await showDatePicker(
@@ -722,28 +836,38 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2030),
                                   );
-                                  if (picked != null) setState(() => _labourActivityDate = picked);
+                                  if (picked != null) {
+                                    setState(() => _labourActivityDate = picked);
+                                  }
                                 },
                               ),
                               ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: customGreen, foregroundColor: Colors.white),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: customGreen,
+                                    foregroundColor: Colors.white),
                                 onPressed: () {
-                                  if (_labourActivityController.text.isNotEmpty && _labourCostController.text.isNotEmpty) {
+                                  if (_labourActivityController.text.isNotEmpty &&
+                                      _labourCostController.text.isNotEmpty) {
                                     final newActivity = {
                                       'activity': _labourActivityController.text.trim(),
                                       'cost': _labourCostController.text,
-                                      'date': _labourActivityDate.toIso8601String().substring(0, 10),
+                                      'date': _labourActivityDate
+                                          .toIso8601String()
+                                          .substring(0, 10),
                                     };
                                     setState(() {
                                       _labourActivities.insert(0, newActivity);
-                                      _prefs.setString('labourActivities_$_currentCycle', jsonEncode(_labourActivities));
+                                      _saveDataOnChange(); // Auto-save
                                       _calculateTotalProductionCost();
                                       _labourActivityController.clear();
                                       _labourCostController.clear();
                                       _labourActivityDate = DateTime.now();
                                     });
                                   } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter both activity and cost')));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Please enter both activity and cost')));
                                   }
                                 },
                                 child: const Text('Add Labour Cost'),
@@ -755,7 +879,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                       const SizedBox(height: 16),
                       if (_labourActivities.isNotEmpty)
                         ListTile(
-                          title: Text('Latest Labour: ${_labourActivities.first['activity']} - KSH ${_labourActivities.first['cost']}'),
+                          title: Text(
+                              'Latest Labour: ${_labourActivities.first['activity']} - KSH ${_labourActivities.first['cost']}'),
                           subtitle: Text('Date: ${_labourActivities.first['date']}'),
                         ),
                       Card(
@@ -764,19 +889,24 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             children: [
-                              const Text('Mechanical Costs', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              const Text('Mechanical Costs',
+                                  style:
+                                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                               Autocomplete<String>(
                                 optionsBuilder: (TextEditingValue textEditingValue) {
                                   if (textEditingValue.text.isEmpty) {
                                     return _getEquipmentSuggestions();
                                   }
                                   return _getEquipmentSuggestions().where((option) =>
-                                      option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                                      option
+                                          .toLowerCase()
+                                          .contains(textEditingValue.text.toLowerCase()));
                                 },
                                 onSelected: (String selection) {
                                   _equipmentUsedController.text = selection;
                                 },
-                                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                fieldViewBuilder:
+                                    (context, controller, focusNode, onFieldSubmitted) {
                                   _equipmentUsedController.text = controller.text;
                                   return TextFormField(
                                     controller: controller,
@@ -793,11 +923,14 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                               ),
                               TextFormField(
                                 controller: _equipmentCostController,
-                                decoration: const InputDecoration(labelText: 'Cost (KSH)', prefixIcon: Icon(Icons.currency_exchange)),
+                                decoration: const InputDecoration(
+                                    labelText: 'Cost (KSH)',
+                                    prefixIcon: Icon(Icons.currency_exchange)),
                                 keyboardType: TextInputType.number,
                               ),
                               ListTile(
-                                title: Text('Date: ${_equipmentUsedDate.toString().substring(0, 10)}'),
+                                title: Text(
+                                    'Date: ${_equipmentUsedDate.toString().substring(0, 10)}'),
                                 trailing: const Icon(Icons.calendar_today),
                                 onTap: () async {
                                   DateTime? picked = await showDatePicker(
@@ -806,28 +939,38 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2030),
                                   );
-                                  if (picked != null) setState(() => _equipmentUsedDate = picked);
+                                  if (picked != null) {
+                                    setState(() => _equipmentUsedDate = picked);
+                                  }
                                 },
                               ),
                               ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: customGreen, foregroundColor: Colors.white),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: customGreen,
+                                    foregroundColor: Colors.white),
                                 onPressed: () {
-                                  if (_equipmentUsedController.text.isNotEmpty && _equipmentCostController.text.isNotEmpty) {
+                                  if (_equipmentUsedController.text.isNotEmpty &&
+                                      _equipmentCostController.text.isNotEmpty) {
                                     final newCost = {
                                       'equipment': _equipmentUsedController.text.trim(),
                                       'cost': _equipmentCostController.text,
-                                      'date': _equipmentUsedDate.toIso8601String().substring(0, 10),
+                                      'date': _equipmentUsedDate
+                                          .toIso8601String()
+                                          .substring(0, 10),
                                     };
                                     setState(() {
                                       _mechanicalCosts.insert(0, newCost);
-                                      _prefs.setString('mechanicalCosts_$_currentCycle', jsonEncode(_mechanicalCosts));
+                                      _saveDataOnChange(); // Auto-save
                                       _calculateTotalProductionCost();
                                       _equipmentUsedController.clear();
                                       _equipmentCostController.clear();
                                       _equipmentUsedDate = DateTime.now();
                                     });
                                   } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter both equipment and cost')));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Please enter both equipment and cost')));
                                   }
                                 },
                                 child: const Text('Add Equipment Cost'),
@@ -839,7 +982,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                       const SizedBox(height: 16),
                       if (_mechanicalCosts.isNotEmpty)
                         ListTile(
-                          title: Text('Latest Equipment: ${_mechanicalCosts.first['equipment']} - KSH ${_mechanicalCosts.first['cost']}'),
+                          title: Text(
+                              'Latest Equipment: ${_mechanicalCosts.first['equipment']} - KSH ${_mechanicalCosts.first['cost']}'),
                           subtitle: Text('Date: ${_mechanicalCosts.first['date']}'),
                         ),
                       Card(
@@ -848,19 +992,24 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             children: [
-                              const Text('Input Costs', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              const Text('Input Costs',
+                                  style:
+                                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                               Autocomplete<String>(
                                 optionsBuilder: (TextEditingValue textEditingValue) {
                                   if (textEditingValue.text.isEmpty) {
                                     return _getInputSuggestions();
                                   }
                                   return _getInputSuggestions().where((option) =>
-                                      option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                                      option
+                                          .toLowerCase()
+                                          .contains(textEditingValue.text.toLowerCase()));
                                 },
                                 onSelected: (String selection) {
                                   _inputUsedController.text = selection;
                                 },
-                                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                fieldViewBuilder:
+                                    (context, controller, focusNode, onFieldSubmitted) {
                                   _inputUsedController.text = controller.text;
                                   return TextFormField(
                                     controller: controller,
@@ -877,11 +1026,14 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                               ),
                               TextFormField(
                                 controller: _inputCostController,
-                                decoration: const InputDecoration(labelText: 'Cost (KSH)', prefixIcon: Icon(Icons.currency_exchange)),
+                                decoration: const InputDecoration(
+                                    labelText: 'Cost (KSH)',
+                                    prefixIcon: Icon(Icons.currency_exchange)),
                                 keyboardType: TextInputType.number,
                               ),
                               ListTile(
-                                title: Text('Date: ${_inputUsedDate.toString().substring(0, 10)}'),
+                                title: Text(
+                                    'Date: ${_inputUsedDate.toString().substring(0, 10)}'),
                                 trailing: const Icon(Icons.calendar_today),
                                 onTap: () async {
                                   DateTime? picked = await showDatePicker(
@@ -890,28 +1042,37 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2030),
                                   );
-                                  if (picked != null) setState(() => _inputUsedDate = picked);
+                                  if (picked != null) {
+                                    setState(() => _inputUsedDate = picked);
+                                  }
                                 },
                               ),
                               ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: customGreen, foregroundColor: Colors.white),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: customGreen,
+                                    foregroundColor: Colors.white),
                                 onPressed: () {
-                                  if (_inputUsedController.text.isNotEmpty && _inputCostController.text.isNotEmpty) {
+                                  if (_inputUsedController.text.isNotEmpty &&
+                                      _inputCostController.text.isNotEmpty) {
                                     final newCost = {
                                       'input': _inputUsedController.text.trim(),
                                       'cost': _inputCostController.text,
-                                      'date': _inputUsedDate.toIso8601String().substring(0, 10),
+                                      'date':
+                                          _inputUsedDate.toIso8601String().substring(0, 10),
                                     };
                                     setState(() {
                                       _inputCosts.insert(0, newCost);
-                                      _prefs.setString('inputCosts_$_currentCycle', jsonEncode(_inputCosts));
+                                      _saveDataOnChange(); // Auto-save
                                       _calculateTotalProductionCost();
                                       _inputUsedController.clear();
                                       _inputCostController.clear();
                                       _inputUsedDate = DateTime.now();
                                     });
                                   } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter both input and cost')));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content:
+                                                Text('Please enter both input and cost')));
                                   }
                                 },
                                 child: const Text('Add Input Cost'),
@@ -923,7 +1084,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                       const SizedBox(height: 16),
                       if (_inputCosts.isNotEmpty)
                         ListTile(
-                          title: Text('Latest Input: ${_inputCosts.first['input']} - KSH ${_inputCosts.first['cost']}'),
+                          title: Text(
+                              'Latest Input: ${_inputCosts.first['input']} - KSH ${_inputCosts.first['cost']}'),
                           subtitle: Text('Date: ${_inputCosts.first['date']}'),
                         ),
                       Card(
@@ -932,7 +1094,9 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             children: [
-                              const Text('Miscellaneous Costs', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              const Text('Miscellaneous Costs',
+                                  style:
+                                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                               TextFormField(
                                 controller: _miscellaneousDescController,
                                 decoration: const InputDecoration(
@@ -944,11 +1108,14 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                               ),
                               TextFormField(
                                 controller: _miscellaneousCostController,
-                                decoration: const InputDecoration(labelText: 'Cost (KSH)', prefixIcon: Icon(Icons.currency_exchange)),
+                                decoration: const InputDecoration(
+                                    labelText: 'Cost (KSH)',
+                                    prefixIcon: Icon(Icons.currency_exchange)),
                                 keyboardType: TextInputType.number,
                               ),
                               ListTile(
-                                title: Text('Date: ${_miscellaneousDate.toString().substring(0, 10)}'),
+                                title: Text(
+                                    'Date: ${_miscellaneousDate.toString().substring(0, 10)}'),
                                 trailing: const Icon(Icons.calendar_today),
                                 onTap: () async {
                                   DateTime? picked = await showDatePicker(
@@ -957,28 +1124,39 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2030),
                                   );
-                                  if (picked != null) setState(() => _miscellaneousDate = picked);
+                                  if (picked != null) {
+                                    setState(() => _miscellaneousDate = picked);
+                                  }
                                 },
                               ),
                               ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: customGreen, foregroundColor: Colors.white),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: customGreen,
+                                    foregroundColor: Colors.white),
                                 onPressed: () {
-                                  if (_miscellaneousDescController.text.isNotEmpty && _miscellaneousCostController.text.isNotEmpty) {
+                                  if (_miscellaneousDescController.text.isNotEmpty &&
+                                      _miscellaneousCostController.text.isNotEmpty) {
                                     final newCost = {
-                                      'description': _miscellaneousDescController.text.trim(),
+                                      'description':
+                                          _miscellaneousDescController.text.trim(),
                                       'cost': _miscellaneousCostController.text,
-                                      'date': _miscellaneousDate.toIso8601String().substring(0, 10),
+                                      'date': _miscellaneousDate
+                                          .toIso8601String()
+                                          .substring(0, 10),
                                     };
                                     setState(() {
                                       _miscellaneousCosts.insert(0, newCost);
-                                      _prefs.setString('miscellaneousCosts_$_currentCycle', jsonEncode(_miscellaneousCosts));
+                                      _saveDataOnChange(); // Auto-save
                                       _calculateTotalProductionCost();
                                       _miscellaneousDescController.clear();
                                       _miscellaneousCostController.clear();
                                       _miscellaneousDate = DateTime.now();
                                     });
                                   } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter both description and cost')));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Please enter both description and cost')));
                                   }
                                 },
                                 child: const Text('Add Miscellaneous Cost'),
@@ -990,7 +1168,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                       const SizedBox(height: 16),
                       if (_miscellaneousCosts.isNotEmpty)
                         ListTile(
-                          title: Text('Latest Misc: ${_miscellaneousCosts.first['description']} - KSH ${_miscellaneousCosts.first['cost']}'),
+                          title: Text(
+                              'Latest Misc: ${_miscellaneousCosts.first['description']} - KSH ${_miscellaneousCosts.first['cost']}'),
                           subtitle: Text('Date: ${_miscellaneousCosts.first['date']}'),
                         ),
                     ],
@@ -1006,27 +1185,35 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             children: [
-                              const Text('Revenue', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              const Text('Revenue',
+                                  style:
+                                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                               TextFormField(
                                 controller: _cropGrownController,
-                                decoration: const InputDecoration(labelText: 'Crop Grown', prefixIcon: Icon(Icons.grass)),
+                                decoration: const InputDecoration(
+                                    labelText: 'Crop Grown', prefixIcon: Icon(Icons.grass)),
                               ),
                               TextFormField(
                                 controller: _revenueController,
-                                decoration: const InputDecoration(labelText: 'Revenue (KSH)', prefixIcon: Icon(Icons.attach_money)),
+                                decoration: const InputDecoration(
+                                    labelText: 'Revenue (KSH)',
+                                    prefixIcon: Icon(Icons.attach_money)),
                                 keyboardType: TextInputType.number,
                               ),
                               ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: customGreen, foregroundColor: Colors.white),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: customGreen,
+                                    foregroundColor: Colors.white),
                                 onPressed: () {
-                                  if (_cropGrownController.text.isNotEmpty && _revenueController.text.isNotEmpty) {
+                                  if (_cropGrownController.text.isNotEmpty &&
+                                      _revenueController.text.isNotEmpty) {
                                     final newRevenue = {
                                       'crop': _cropGrownController.text,
                                       'amount': _revenueController.text,
                                     };
                                     setState(() {
                                       _revenues.insert(0, newRevenue);
-                                      _prefs.setString('revenues_$_currentCycle', jsonEncode(_revenues));
+                                      _saveDataOnChange(); // Auto-save
                                       _calculateTotalProductionCost();
                                       _cropGrownController.clear();
                                       _revenueController.clear();
@@ -1045,7 +1232,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                         child: ListView.builder(
                           itemCount: _revenues.length,
                           itemBuilder: (context, index) => ListTile(
-                            title: Text('${_revenues[index]['crop']} - KSH ${_revenues[index]['amount']}'),
+                            title: Text(
+                                '${_revenues[index]['crop']} - KSH ${_revenues[index]['amount']}'),
                           ),
                         ),
                       ),
@@ -1061,7 +1249,9 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             children: [
-                              const Text('Profit/Loss', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              const Text('Profit/Loss',
+                                  style:
+                                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                               TextFormField(
                                 controller: _totalProductionCostController,
                                 decoration: const InputDecoration(labelText: 'Total Cost (KSH)'),
@@ -1069,7 +1259,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                               ),
                               TextFormField(
                                 controller: _profitLossController,
-                                decoration: const InputDecoration(labelText: 'Profit/Loss (KSH)'),
+                                decoration:
+                                    const InputDecoration(labelText: 'Profit/Loss (KSH)'),
                                 readOnly: true,
                               ),
                             ],
@@ -1089,16 +1280,22 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             children: [
-                              const Text('Loan Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              const Text('Loan Details',
+                                  style:
+                                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                               TextFormField(
                                 controller: _loanAmountController,
-                                decoration: const InputDecoration(labelText: 'Loan Amount (KSH)', prefixIcon: Icon(Icons.account_balance_wallet)),
+                                decoration: const InputDecoration(
+                                    labelText: 'Loan Amount (KSH)',
+                                    prefixIcon: Icon(Icons.account_balance_wallet)),
                                 keyboardType: TextInputType.number,
                                 onChanged: (_) => _updateLoanCalculations(),
                               ),
                               TextFormField(
                                 controller: _interestRateController,
-                                decoration: const InputDecoration(labelText: 'Interest Rate (%)', prefixIcon: Icon(Icons.percent)),
+                                decoration: const InputDecoration(
+                                    labelText: 'Interest Rate (%)',
+                                    prefixIcon: Icon(Icons.percent)),
                                 keyboardType: TextInputType.number,
                                 onChanged: (_) => _updateLoanCalculations(),
                               ),
@@ -1109,12 +1306,14 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                               ),
                               TextFormField(
                                 controller: _totalRepaymentController,
-                                decoration: const InputDecoration(labelText: 'Total Repayment (KSH)'),
+                                decoration:
+                                    const InputDecoration(labelText: 'Total Repayment (KSH)'),
                                 readOnly: true,
                               ),
                               TextFormField(
                                 controller: _remainingBalanceController,
-                                decoration: const InputDecoration(labelText: 'Remaining Balance (KSH)'),
+                                decoration:
+                                    const InputDecoration(labelText: 'Remaining Balance (KSH)'),
                                 readOnly: true,
                               ),
                             ],
@@ -1128,14 +1327,19 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             children: [
-                              const Text('Loan Payments', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              const Text('Loan Payments',
+                                  style:
+                                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                               TextFormField(
                                 controller: _paymentAmountController,
-                                decoration: const InputDecoration(labelText: 'Payment Amount (KSH)', prefixIcon: Icon(Icons.payment)),
+                                decoration: const InputDecoration(
+                                    labelText: 'Payment Amount (KSH)',
+                                    prefixIcon: Icon(Icons.payment)),
                                 keyboardType: TextInputType.number,
                               ),
                               ListTile(
-                                title: Text('Payment Date: ${_paymentDate.toString().substring(0, 10)}'),
+                                title: Text(
+                                    'Payment Date: ${_paymentDate.toString().substring(0, 10)}'),
                                 trailing: const Icon(Icons.calendar_today),
                                 onTap: () async {
                                   DateTime? picked = await showDatePicker(
@@ -1144,11 +1348,15 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2030),
                                   );
-                                  if (picked != null) setState(() => _paymentDate = picked);
+                                  if (picked != null) {
+                                    setState(() => _paymentDate = picked);
+                                  }
                                 },
                               ),
                               ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: customGreen, foregroundColor: Colors.white),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: customGreen,
+                                    foregroundColor: Colors.white),
                                 onPressed: _recordPayment,
                                 child: const Text('Record Payment'),
                               ),
@@ -1162,8 +1370,10 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                         child: ListView.builder(
                           itemCount: _paymentHistory.length,
                           itemBuilder: (context, index) => ListTile(
-                            title: Text('${_paymentHistory[index]['date']} - KSH ${_paymentHistory[index]['amount']}'),
-                            subtitle: Text('Remaining: KSH ${_paymentHistory[index]['remainingBalance']}'),
+                            title: Text(
+                                '${_paymentHistory[index]['date']} - KSH ${_paymentHistory[index]['amount']}'),
+                            subtitle: Text(
+                                'Remaining: KSH ${_paymentHistory[index]['remainingBalance']}'),
                           ),
                         ),
                       ),
@@ -1190,27 +1400,27 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
                   switch (category) {
                     case 'labour':
                       _labourActivities.removeAt(index);
-                      _prefs.setString('labourActivities_$_currentCycle', jsonEncode(_labourActivities));
+                      _saveDataOnChange();
                       break;
                     case 'mechanical':
                       _mechanicalCosts.removeAt(index);
-                      _prefs.setString('mechanicalCosts_$_currentCycle', jsonEncode(_mechanicalCosts));
+                      _saveDataOnChange();
                       break;
                     case 'input':
                       _inputCosts.removeAt(index);
-                      _prefs.setString('inputCosts_$_currentCycle', jsonEncode(_inputCosts));
+                      _saveDataOnChange();
                       break;
                     case 'miscellaneous':
                       _miscellaneousCosts.removeAt(index);
-                      _prefs.setString('miscellaneousCosts_$_currentCycle', jsonEncode(_miscellaneousCosts));
+                      _saveDataOnChange();
                       break;
                     case 'revenue':
                       _revenues.removeAt(index);
-                      _prefs.setString('revenues_$_currentCycle', jsonEncode(_revenues));
+                      _saveDataOnChange();
                       break;
                     case 'payment':
                       _paymentHistory.removeAt(index);
-                      _prefs.setString('paymentHistory_$_currentCycle', jsonEncode(_paymentHistory));
+                      _saveDataOnChange();
                       _updateLoanCalculations();
                       break;
                   }
@@ -1253,7 +1463,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> with Single
   }
 }
 
-// --- ActivitiesScreen (unchanged except imports) ---
+// --- ActivitiesScreen ---
 class ActivitiesScreen extends StatelessWidget {
   final List<Map<String, dynamic>> labourActivities;
   final List<Map<String, dynamic>> mechanicalCosts;
@@ -1287,16 +1497,22 @@ class ActivitiesScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Card(child: ListTile(title: const Text('Total Costs'), subtitle: Text('KSH $totalCosts'))),
-            Card(child: ListTile(title: const Text('Profit/Loss'), subtitle: Text('KSH $profitLoss'))),
+            Card(
+                child: ListTile(
+                    title: const Text('Total Costs'), subtitle: Text('KSH $totalCosts'))),
+            Card(
+                child: ListTile(
+                    title: const Text('Profit/Loss'), subtitle: Text('KSH $profitLoss'))),
             const SizedBox(height: 20),
-            const Text('Labour Activities', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Labour Activities',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: labourActivities.length,
               itemBuilder: (context, index) => ListTile(
-                title: Text('${labourActivities[index]['activity']} - KSH ${labourActivities[index]['cost']}'),
+                title: Text(
+                    '${labourActivities[index]['activity']} - KSH ${labourActivities[index]['cost']}'),
                 subtitle: Text('Date: ${labourActivities[index]['date']}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
@@ -1305,13 +1521,15 @@ class ActivitiesScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Mechanical Costs', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Mechanical Costs',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: mechanicalCosts.length,
               itemBuilder: (context, index) => ListTile(
-                title: Text('${mechanicalCosts[index]['equipment']} - KSH ${mechanicalCosts[index]['cost']}'),
+                title: Text(
+                    '${mechanicalCosts[index]['equipment']} - KSH ${mechanicalCosts[index]['cost']}'),
                 subtitle: Text('Date: ${mechanicalCosts[index]['date']}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
@@ -1320,13 +1538,15 @@ class ActivitiesScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Input Costs', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Input Costs',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: inputCosts.length,
               itemBuilder: (context, index) => ListTile(
-                title: Text('${inputCosts[index]['input']} - KSH ${inputCosts[index]['cost']}'),
+                title: Text(
+                    '${inputCosts[index]['input']} - KSH ${inputCosts[index]['cost']}'),
                 subtitle: Text('Date: ${inputCosts[index]['date']}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
@@ -1335,13 +1555,15 @@ class ActivitiesScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Miscellaneous Costs', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Miscellaneous Costs',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: miscellaneousCosts.length,
               itemBuilder: (context, index) => ListTile(
-                title: Text('${miscellaneousCosts[index]['description']} - KSH ${miscellaneousCosts[index]['cost']}'),
+                title: Text(
+                    '${miscellaneousCosts[index]['description']} - KSH ${miscellaneousCosts[index]['cost']}'),
                 subtitle: Text('Date: ${miscellaneousCosts[index]['date']}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
@@ -1350,13 +1572,15 @@ class ActivitiesScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Revenues', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Revenues',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: revenues.length,
               itemBuilder: (context, index) => ListTile(
-                title: Text('${revenues[index]['crop']} - KSH ${revenues[index]['amount']}'),
+                title: Text(
+                    '${revenues[index]['crop']} - KSH ${revenues[index]['amount']}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () => onDelete('revenue', index),
@@ -1364,14 +1588,17 @@ class ActivitiesScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Loan Payments', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Loan Payments',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: paymentHistory.length,
               itemBuilder: (context, index) => ListTile(
-                title: Text('${paymentHistory[index]['date']} - KSH ${paymentHistory[index]['amount']}'),
-                subtitle: Text('Remaining: KSH ${paymentHistory[index]['remainingBalance']}'),
+                title: Text(
+                    '${paymentHistory[index]['date']} - KSH ${paymentHistory[index]['amount']}'),
+                subtitle: Text(
+                    'Remaining: KSH ${paymentHistory[index]['remainingBalance']}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () => onDelete('payment', index),
@@ -1385,7 +1612,7 @@ class ActivitiesScreen extends StatelessWidget {
   }
 }
 
-// --- Updated HistoryScreen ---
+// --- HistoryScreen ---
 class HistoryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> labourActivities;
   final List<Map<String, dynamic>> mechanicalCosts;
@@ -1437,37 +1664,43 @@ class _HistoryScreenState extends State<HistoryScreen> {
       widget.labourActivities.clear();
       widget.labourActivities.addAll(
         (_prefs.getString('labourActivities_$cycle') != null)
-            ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('labourActivities_$cycle')!))
+            ? List<Map<String, dynamic>>.from(
+                jsonDecode(_prefs.getString('labourActivities_$cycle')!))
             : [],
       );
       widget.mechanicalCosts.clear();
       widget.mechanicalCosts.addAll(
         (_prefs.getString('mechanicalCosts_$cycle') != null)
-            ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('mechanicalCosts_$cycle')!))
+            ? List<Map<String, dynamic>>.from(
+                jsonDecode(_prefs.getString('mechanicalCosts_$cycle')!))
             : [],
       );
       widget.inputCosts.clear();
       widget.inputCosts.addAll(
         (_prefs.getString('inputCosts_$cycle') != null)
-            ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('inputCosts_$cycle')!))
+            ? List<Map<String, dynamic>>.from(
+                jsonDecode(_prefs.getString('inputCosts_$cycle')!))
             : [],
       );
       widget.miscellaneousCosts.clear();
       widget.miscellaneousCosts.addAll(
         (_prefs.getString('miscellaneousCosts_$cycle') != null)
-            ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('miscellaneousCosts_$cycle')!))
+            ? List<Map<String, dynamic>>.from(
+                jsonDecode(_prefs.getString('miscellaneousCosts_$cycle')!))
             : [],
       );
       widget.revenues.clear();
       widget.revenues.addAll(
         (_prefs.getString('revenues_$cycle') != null)
-            ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('revenues_$cycle')!))
+            ? List<Map<String, dynamic>>.from(
+                jsonDecode(_prefs.getString('revenues_$cycle')!))
             : [],
       );
       widget.paymentHistory.clear();
       widget.paymentHistory.addAll(
         (_prefs.getString('paymentHistory_$cycle') != null)
-            ? List<Map<String, dynamic>>.from(jsonDecode(_prefs.getString('paymentHistory_$cycle')!))
+            ? List<Map<String, dynamic>>.from(
+                jsonDecode(_prefs.getString('paymentHistory_$cycle')!))
             : [],
       );
     });
@@ -1478,8 +1711,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return data.where((item) {
       if (!item.containsKey('date')) return true; // For revenues without date
       DateTime itemDate = DateTime.parse(item['date']);
-      return itemDate.isAfter(startDate!.subtract(const Duration(days: 1))) && 
-             itemDate.isBefore(endDate!.add(const Duration(days: 1)));
+      return itemDate.isAfter(startDate!.subtract(const Duration(days: 1))) &&
+          itemDate.isBefore(endDate!.add(const Duration(days: 1)));
     }).toList();
   }
 
@@ -1503,7 +1736,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               children: [
                 DropdownButton<String>(
                   value: selectedCycle,
-                  items: [widget.cycleName, ...widget.pastCycles].map((cycle) => DropdownMenuItem(value: cycle, child: Text(cycle))).toList(),
+                  items: [widget.cycleName, ...widget.pastCycles]
+                      .map((cycle) =>
+                          DropdownMenuItem(value: cycle, child: Text(cycle)))
+                      .toList(),
                   onChanged: (value) {
                     if (value != null) {
                       setState(() {
@@ -1525,7 +1761,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     );
                     if (picked != null) setState(() => startDate = picked);
                   },
-                  child: Text(startDate == null ? 'Start Date' : startDate.toString().substring(0, 10)),
+                  child: Text(startDate == null
+                      ? 'Start Date'
+                      : startDate.toString().substring(0, 10)),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -1537,13 +1775,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     );
                     if (picked != null) setState(() => endDate = picked);
                   },
-                  child: Text(endDate == null ? 'End Date' : endDate.toString().substring(0, 10)),
+                  child: Text(endDate == null
+                      ? 'End Date'
+                      : endDate.toString().substring(0, 10)),
                 ),
               ],
             ),
             const SizedBox(height: 20),
             if (filteredLabour.isNotEmpty) ...[
-              const Text('Labour Activities', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Labour Activities',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -1559,7 +1800,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               const SizedBox(height: 20),
             ],
             if (filteredMechanical.isNotEmpty) ...[
-              const Text('Mechanical Costs', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Mechanical Costs',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -1575,7 +1817,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               const SizedBox(height: 20),
             ],
             if (filteredInputs.isNotEmpty) ...[
-              const Text('Input Costs', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Input Costs',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -1591,7 +1834,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               const SizedBox(height: 20),
             ],
             if (filteredMisc.isNotEmpty) ...[
-              const Text('Miscellaneous Costs', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Miscellaneous Costs',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -1607,7 +1851,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               const SizedBox(height: 20),
             ],
             if (filteredRevenues.isNotEmpty) ...[
-              const Text('Revenues', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Revenues',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -1622,7 +1867,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               const SizedBox(height: 20),
             ],
             if (filteredPayments.isNotEmpty) ...[
-              const Text('Loan Payments', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Loan Payments',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -1631,7 +1877,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   final item = filteredPayments[index];
                   return ListTile(
                     title: Text('${item['date']} - KSH ${item['amount']}'),
-                    subtitle: Text('Remaining: KSH ${item['remainingBalance']}'),
+                    subtitle:
+                        Text('Remaining: KSH ${item['remainingBalance']}'),
                   );
                 },
               ),
