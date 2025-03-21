@@ -5,8 +5,14 @@ import 'package:kilimomkononi/models/field_data_model.dart';
 class PlotSummaryTab extends StatefulWidget {
   final String userId;
   final List<String> plotIds;
+  final bool showAll; // New flag to show all data
 
-  const PlotSummaryTab({required this.userId, required this.plotIds, super.key});
+  const PlotSummaryTab({
+    required this.userId,
+    required this.plotIds,
+    this.showAll = false,
+    super.key,
+  });
 
   @override
   State<PlotSummaryTab> createState() => _PlotSummaryTabState();
@@ -15,8 +21,6 @@ class PlotSummaryTab extends StatefulWidget {
 class _PlotSummaryTabState extends State<PlotSummaryTab> {
   @override
   Widget build(BuildContext context) {
-    final prefixedPlotIds = widget.plotIds.map((id) => '${widget.userId}_$id').toList();
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 3, 39, 4),
@@ -30,11 +34,16 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('fielddata')
-            .where('userId', isEqualTo: widget.userId)
-            .where(FieldPath.documentId, whereIn: prefixedPlotIds)
-            .snapshots(),
+        stream: widget.showAll
+            ? FirebaseFirestore.instance
+                .collection('fielddata')
+                .where('userId', isEqualTo: widget.userId)
+                .snapshots()
+            : FirebaseFirestore.instance
+                .collection('fielddata')
+                .where('userId', isEqualTo: widget.userId)
+                .where(FieldPath.documentId, whereIn: widget.plotIds.map((id) => '${widget.userId}_$id').toList())
+                .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
@@ -103,7 +112,7 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
                       _buildFieldRow('Crops', plot.crops.isNotEmpty
                           ? plot.crops.map((c) => '${c['type']} (${c['stage']})').join(', ')
                           : 'None'),
-                      _buildFieldRow('Area', plot.area != null ? '${plot.area} SQM' : 'None'),
+                      _buildFieldRow('Area', plot.area != null ? '${plot.area} Acres' : 'None'),
                       _buildFieldRow('Nitrogen (N)', plot.npk['N'] != null ? '${plot.npk['N']}' : 'None'),
                       _buildFieldRow('Phosphorus (P)', plot.npk['P'] != null ? '${plot.npk['P']}' : 'None'),
                       _buildFieldRow('Potassium (K)', plot.npk['K'] != null ? '${plot.npk['K']}' : 'None'),
@@ -171,11 +180,11 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
                     children: [
                       TextField(
                         controller: cropControllers[idx],
-                        decoration: InputDecoration(labelText: 'Crop Type ${idx + 1}'),
+                        decoration: const InputDecoration(labelText: 'Crop Type'),
                       ),
                       TextField(
                         controller: stageControllers[idx],
-                        decoration: InputDecoration(labelText: 'Crop Stage ${idx + 1}'),
+                        decoration: const InputDecoration(labelText: 'Crop Stage'),
                       ),
                       const SizedBox(height: 8),
                     ],
@@ -195,8 +204,8 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: areaController,
-                  decoration: const InputDecoration(labelText: 'Area (SQM)'),
-                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Area (Acres)'),
+                  keyboardType: TextInputType.text,
                 ),
                 const SizedBox(height: 8),
                 TextField(

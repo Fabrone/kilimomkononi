@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:kilimomkononi/models/user_model.dart';
-//import 'package:kilimomkononi/screens/adminmanagementscreen.dart';
 import 'package:kilimomkononi/screens/adminsamplescreen.dart';
 import 'package:kilimomkononi/screens/farm_management_screen.dart';
 import 'package:kilimomkononi/screens/farming_tips_widget.dart';
@@ -51,14 +50,14 @@ class _HomePageState extends State<HomePage> {
     logger.i('HomePage initState called');
     _fetchUserData();
     _listenToUserAndAdminStatus();
-    _listenToAuthState(); // New: Listen to auth state changes
+    _listenToAuthState();
   }
 
   Future<void> _fetchUserData() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       logger.i('Fetching data for user: ${user.email}, UID: ${user.uid}');
-      _userId = user.uid; // Set immediately to avoid null during initial load
+      _userId = user.uid;
       DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
           .collection('Users')
           .doc(user.uid)
@@ -106,7 +105,7 @@ class _HomePageState extends State<HomePage> {
       } else {
         logger.w('No user data found in Firestore for UID: ${user.uid}');
         setState(() {
-          _userId = user.uid; // Ensure _userId is set even without a Users doc
+          _userId = user.uid;
         });
       }
     } else {
@@ -120,15 +119,14 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // New method to check and refresh user status
   void _listenToAuthState() {
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user != null) {
         logger.i('Auth state changed - User logged in: ${user.uid}');
         setState(() {
-          _userId = user.uid; // Refresh _userId on auth state change
+          _userId = user.uid;
         });
-        _fetchUserData(); // Re-fetch data to ensure consistency
+        _fetchUserData();
       } else {
         logger.w('Auth state changed - No user logged in');
         if (mounted) {
@@ -242,7 +240,12 @@ class _HomePageState extends State<HomePage> {
           children: [
             _buildCarousel(),
             _buildClickableSections(),
-            if (_isMainAdmin) _buildAdminButton(),
+            if (_isMainAdmin)
+              _buildAdminButton()
+            else
+              Builder(
+                builder: (context) => _buildMenuButton(context), // Pass Scaffold context
+              ),
           ],
         ),
       ),
@@ -262,6 +265,24 @@ class _HomePageState extends State<HomePage> {
         },
         icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
         label: const Text('Admin Management', style: TextStyle(color: Colors.white)),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          backgroundColor: const Color.fromARGB(255, 3, 39, 4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuButton(BuildContext scaffoldContext) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: ElevatedButton.icon(
+        onPressed: () {
+          Scaffold.of(scaffoldContext).openDrawer(); // Use the correct context
+        },
+        icon: const Icon(Icons.menu, color: Colors.white),
+        label: const Text('MENU', style: TextStyle(color: Colors.white)),
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
           backgroundColor: const Color.fromARGB(255, 3, 39, 4),
@@ -441,7 +462,7 @@ class _HomePageState extends State<HomePage> {
               );
             } else {
               logger.w('User ID is null, attempting refresh');
-              _fetchUserData(); // Retry fetching
+              _fetchUserData();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('User ID not available. Retrying...')),
               );

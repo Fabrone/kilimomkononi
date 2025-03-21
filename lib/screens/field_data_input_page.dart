@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:kilimomkononi/screens/plot_input_form.dart';
+import 'package:kilimomkononi/screens/plot_summary_tab.dart';
 
 class FieldDataInputPage extends StatefulWidget {
   final String userId;
@@ -25,7 +26,7 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
     tz.initializeTimeZones();
     _initializeNotifications();
     _loadFarmingScenario();
-    _tabController = TabController(length: 1, vsync: this);
+    _tabController = TabController(length: _plotIds.isEmpty ? 1 : _plotIds.length, vsync: this);
   }
 
   @override
@@ -61,6 +62,7 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
               : _plotIds.first.contains('Intercrop')
                   ? 'intercrop'
                   : 'single';
+          _tabController.dispose(); // Dispose old controller
           _tabController = TabController(length: _plotIds.length, vsync: this);
         });
       }
@@ -111,7 +113,6 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
                   TextFormField(
                     decoration: const InputDecoration(
                       labelText: 'Number of Plots',
-                      hintText: 'e.g., 3',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
@@ -122,7 +123,6 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
                   TextFormField(
                     decoration: const InputDecoration(
                       labelText: 'Plot Label Prefix',
-                      hintText: 'e.g., Plot, Field, Section',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
@@ -149,6 +149,7 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
                   } else {
                     _plotIds = ['SingleCrop'];
                   }
+                  _tabController.dispose(); // Dispose old controller
                   _tabController = TabController(length: _plotIds.length, vsync: this);
                 });
                 Navigator.pop(dialogContext);
@@ -165,9 +166,26 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
     );
   }
 
+  void _showFieldHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PlotSummaryTab(
+          userId: widget.userId,
+          plotIds: [], // Empty list to fetch all plots
+          showAll: true, // Flag to indicate fetching all data
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_farmingScenario == null) return const SizedBox();
+    if (_farmingScenario == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return DefaultTabController(
       length: _plotIds.length,
@@ -189,40 +207,58 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
         ),
         body: Column(
           children: [
-            Container(
-              color: const Color.fromARGB(255, 240, 244, 243),
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                labelColor: Colors.black,
-                unselectedLabelColor: Colors.black54,
-                indicatorColor: const Color.fromRGBO(67, 145, 67, 1),
-                tabs: _plotIds.map((plotId) => Tab(text: plotId)).toList(),
+            if (_plotIds.isNotEmpty)
+              Container(
+                color: const Color.fromARGB(255, 240, 244, 243),
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  labelColor: Colors.black,
+                  unselectedLabelColor: Colors.black54,
+                  indicatorColor: const Color.fromRGBO(67, 145, 67, 1),
+                  tabs: _plotIds.map((plotId) => Tab(text: plotId)).toList(),
+                ),
               ),
-            ),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: _plotIds.map((plotId) {
-                  return PlotInputForm(
-                    userId: widget.userId,
-                    plotId: plotId,
-                    notificationsPlugin: _notificationsPlugin,
-                  );
-                }).toList(),
-              ),
+              child: _plotIds.isEmpty
+                  ? const Center(child: Text('No plots defined yet.'))
+                  : TabBarView(
+                      controller: _tabController,
+                      children: _plotIds.map((plotId) {
+                        return PlotInputForm(
+                          userId: widget.userId,
+                          plotId: plotId,
+                          notificationsPlugin: _notificationsPlugin,
+                        );
+                      }).toList(),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: ElevatedButton(
-                onPressed: _showOnboardingDialog,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 3, 39, 4),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: const Text('Redefine Structure', style: TextStyle(fontSize: 16)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: _showOnboardingDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 3, 39, 4),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Redefine Structure', style: TextStyle(fontSize: 16)),
+                  ),
+                  ElevatedButton(
+                    onPressed: _showFieldHistory,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 3, 39, 4),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Retrieve Field History', style: TextStyle(fontSize: 16)),
+                  ),
+                ],
               ),
             ),
           ],
