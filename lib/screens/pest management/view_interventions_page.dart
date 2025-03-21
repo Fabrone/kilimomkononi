@@ -29,7 +29,7 @@ class _ViewInterventionsPageState extends State<ViewInterventionsPage> {
     if (user == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Saved Interventions', style: TextStyle(color: Colors.white)),
+          title: const Text('Saved Interventions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 3, 39, 4),
           foregroundColor: Colors.white,
         ),

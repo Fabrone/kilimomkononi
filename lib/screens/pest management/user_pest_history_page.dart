@@ -20,7 +20,7 @@ class _UserPestHistoryPageState extends State<UserPestHistoryPage> {
     if (user == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('My Pest Management History', style: TextStyle(color: Colors.white)),
+          title: const Text('My Pest Management History', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 3, 39, 4),
           foregroundColor: Colors.white,
         ),

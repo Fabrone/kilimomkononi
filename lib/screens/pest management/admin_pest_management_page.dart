@@ -18,7 +18,7 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Pest Management', style: TextStyle(color: Colors.white)),
+        title: const Text('Admin Pest Management', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color.fromARGB(255, 3, 39, 4),
         foregroundColor: Colors.white,
       ),

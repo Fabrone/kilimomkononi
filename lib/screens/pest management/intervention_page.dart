@@ -27,7 +27,7 @@ class _InterventionPageState extends State<InterventionPage> {
   final _interventionController = TextEditingController();
   final _amountController = TextEditingController();
   final _areaController = TextEditingController();
-  bool _useSQM = true;
+  bool _useSQM = false;
 
   Future<void> _saveIntervention() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -84,11 +84,11 @@ class _InterventionPageState extends State<InterventionPage> {
     }
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Pest Intervention', style: TextStyle(color: Colors.white)),
+        title: const Text('Manage Pest Intervention', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color.fromARGB(255, 3, 39, 4),
         foregroundColor: Colors.white,
       ),
