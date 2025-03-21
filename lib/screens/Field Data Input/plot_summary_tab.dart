@@ -5,7 +5,7 @@ import 'package:kilimomkononi/models/field_data_model.dart';
 class PlotSummaryTab extends StatefulWidget {
   final String userId;
   final List<String> plotIds;
-  final bool showAll; // New flag to show all data
+  final bool showAll;
 
   const PlotSummaryTab({
     required this.userId,
@@ -33,52 +33,104 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: widget.showAll
-            ? FirebaseFirestore.instance
-                .collection('fielddata')
-                .where('userId', isEqualTo: widget.userId)
-                .snapshots()
-            : FirebaseFirestore.instance
-                .collection('fielddata')
-                .where('userId', isEqualTo: widget.userId)
-                .where(FieldPath.documentId, whereIn: widget.plotIds.map((id) => '${widget.userId}_$id').toList())
-                .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Error: ${snapshot.error}',
-                style: const TextStyle(fontSize: 16, color: Colors.red),
-              ),
+      body: widget.showAll
+          ? _buildAllPlotsView()
+          : _buildSpecificPlotsView(),
+    );
+  }
+
+  Widget _buildAllPlotsView() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('user_structure')
+          .doc(widget.userId)
+          .snapshots(),
+      builder: (context, structureSnapshot) {
+        if (structureSnapshot.hasError) {
+          return Center(child: Text('Error: ${structureSnapshot.error}'));
+        }
+        if (!structureSnapshot.hasData || structureSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final plotIds = (structureSnapshot.data!.data() as Map<String, dynamic>?)?['plotIds']?.cast<String>() ?? [];
+        if (plotIds.isEmpty) {
+          return const Center(child: Text('No plots available.'));
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: plotIds.length,
+          itemBuilder: (context, index) {
+            final plotId = plotIds[index];
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('fielddata')
+                  .doc(widget.userId)
+                  .collection('plots')
+                  .doc(plotId)
+                  .collection('entries')
+                  .snapshots(),
+              builder: (context, entriesSnapshot) {
+                if (!entriesSnapshot.hasData) return const SizedBox();
+                final entries = entriesSnapshot.data!.docs
+                    .map((doc) => FieldData.fromMap(doc.data() as Map<String, dynamic>))
+                    .toList();
+                return _buildPlotCard(plotId, entries, entriesSnapshot.data!.docs);
+              },
             );
-          }
-          if (!snapshot.hasData || snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          },
+        );
+      },
+    );
+  }
 
-          final plots = snapshot.data!.docs.map((doc) => FieldData.fromMap(doc.data() as Map<String, dynamic>)).toList();
+  Widget _buildSpecificPlotsView() {
+    if (widget.plotIds.isEmpty) {
+      return const Center(child: Text('No specific plots selected.'));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: widget.plotIds.length,
+      itemBuilder: (context, index) {
+        final plotId = widget.plotIds[index];
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('fielddata')
+              .doc(widget.userId)
+              .collection('plots')
+              .doc(plotId)
+              .collection('entries')
+              .snapshots(),
+          builder: (context, entriesSnapshot) {
+            if (!entriesSnapshot.hasData) return const SizedBox();
+            final entries = entriesSnapshot.data!.docs
+                .map((doc) => FieldData.fromMap(doc.data() as Map<String, dynamic>))
+                .toList();
+            return _buildPlotCard(plotId, entries, entriesSnapshot.data!.docs);
+          },
+        );
+      },
+    );
+  }
 
-          if (plots.isEmpty) {
-            return const Center(
-              child: Text(
-                'No plot data available.',
-                style: TextStyle(fontSize: 16, color: Colors.black),
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: plots.length,
-            itemBuilder: (context, index) {
-              final plot = plots[index];
-              return Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                color: Colors.white,
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: Padding(
+  Widget _buildPlotCard(String plotId, List<FieldData> entries, List<QueryDocumentSnapshot> docs) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.white,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ExpansionTile(
+        title: Text(
+          plotId,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 3, 39, 4)),
+        ),
+        children: entries.isEmpty
+            ? [const Padding(padding: EdgeInsets.all(16), child: Text('No data available.'))]
+            : entries.asMap().entries.map((entry) {
+                final index = entry.key;
+                final plot = entry.value;
+                return Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,22 +139,18 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            plot.plotId,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color.fromARGB(255, 3, 39, 4),
-                            ),
+                            plot.timestamp.toDate().toString().substring(0, 16),
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
                           ),
                           Row(
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _editPlot(context, plot),
+                                onPressed: () => _editPlot(context, plot, docs[index].id),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deletePlot(context, plot),
+                                onPressed: () => _deletePlot(context, plotId, docs[index].id),
                               ),
                             ],
                           ),
@@ -125,11 +173,8 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
                           : 'None'),
                     ],
                   ),
-                ),
-              );
-            },
-          );
-        },
+                );
+              }).toList(),
       ),
     );
   }
@@ -149,7 +194,7 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
     );
   }
 
-  Future<void> _editPlot(BuildContext context, FieldData plot) async {
+  Future<void> _editPlot(BuildContext context, FieldData plot, String entryId) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final List<TextEditingController> cropControllers = plot.crops.map((c) => TextEditingController(text: c['type'])).toList();
     final List<TextEditingController> stageControllers = plot.crops.map((c) => TextEditingController(text: c['stage'])).toList();
@@ -168,7 +213,7 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Edit ${plot.plotId}'),
+        title: Text('Edit ${plot.plotId} Entry'),
         content: StatefulBuilder(
           builder: (context, setState) => SingleChildScrollView(
             child: Column(
@@ -190,7 +235,7 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
                     ],
                   );
                 }),
-                if (plot.plotId.contains('Intercrop'))
+                if (plot.structureType == 'intercrop')
                   ElevatedButton(
                     onPressed: () {
                       setState(() {
@@ -292,31 +337,36 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
         interventions: editedInterventions,
         reminders: editedReminders,
         timestamp: Timestamp.now(),
+        structureType: plot.structureType,
       );
 
       try {
         await FirebaseFirestore.instance
             .collection('fielddata')
-            .doc('${widget.userId}_${plot.plotId}')
+            .doc(widget.userId)
+            .collection('plots')
+            .doc(plot.plotId)
+            .collection('entries')
+            .doc(entryId)
             .set(updatedFieldData.toMap());
         if (mounted) {
-          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Plot updated successfully')));
+          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Entry updated successfully')));
         }
       } catch (e) {
         if (mounted) {
-          scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error updating plot: $e')));
+          scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error updating entry: $e')));
         }
       }
     }
   }
 
-  Future<void> _deletePlot(BuildContext context, FieldData plot) async {
+  Future<void> _deletePlot(BuildContext context, String plotId, String entryId) async {
     final messenger = ScaffoldMessenger.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Deletion'),
-        content: Text('Are you sure you want to delete ${plot.plotId}?'),
+        content: Text('Are you sure you want to delete this entry for $plotId?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -334,14 +384,18 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
       try {
         await FirebaseFirestore.instance
             .collection('fielddata')
-            .doc('${widget.userId}_${plot.plotId}')
+            .doc(widget.userId)
+            .collection('plots')
+            .doc(plotId)
+            .collection('entries')
+            .doc(entryId)
             .delete();
         if (mounted) {
-          messenger.showSnackBar(SnackBar(content: Text('${plot.plotId} deleted successfully')));
+          messenger.showSnackBar(const SnackBar(content: Text('Entry deleted successfully')));
         }
       } catch (e) {
         if (mounted) {
-          messenger.showSnackBar(SnackBar(content: Text('Error deleting plot: $e')));
+          messenger.showSnackBar(SnackBar(content: Text('Error deleting entry: $e')));
         }
       }
     }

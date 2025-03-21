@@ -11,6 +11,7 @@ class FieldData {
   final List<Map<String, dynamic>> interventions;
   final List<Map<String, dynamic>> reminders;
   final Timestamp timestamp;
+  final String structureType; 
 
   FieldData({
     required this.userId,
@@ -23,6 +24,7 @@ class FieldData {
     required this.interventions,
     required this.reminders,
     required this.timestamp,
+    required this.structureType,
   });
 
   Map<String, dynamic> toMap() => {
@@ -36,6 +38,7 @@ class FieldData {
         'interventions': interventions,
         'reminders': reminders,
         'timestamp': timestamp,
+        'structureType': structureType,
       };
 
   factory FieldData.fromMap(Map<String, dynamic> map) => FieldData(
@@ -51,5 +54,6 @@ class FieldData {
         interventions: List<Map<String, dynamic>>.from(map['interventions'] as List),
         reminders: List<Map<String, dynamic>>.from(map['reminders'] as List),
         timestamp: map['timestamp'] as Timestamp,
+        structureType: map['structureType'] as String,
       );
 }

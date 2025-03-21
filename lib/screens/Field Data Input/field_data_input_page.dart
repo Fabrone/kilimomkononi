@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
-import 'package:kilimomkononi/screens/plot_input_form.dart';
-import 'package:kilimomkononi/screens/plot_summary_tab.dart';
+import 'package:kilimomkononi/screens/Field%20Data%20Input/plot_input_form.dart';
+import 'package:kilimomkononi/screens/Field%20Data%20Input/plot_summary_tab.dart';
 
 class FieldDataInputPage extends StatefulWidget {
   final String userId;
@@ -19,13 +19,14 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
   List<String> _plotIds = [];
   late TabController _tabController;
   late FlutterLocalNotificationsPlugin _notificationsPlugin;
+  final Map<String, bool> _plotHasData = {};
 
   @override
   void initState() {
     super.initState();
     tz.initializeTimeZones();
     _initializeNotifications();
-    _loadFarmingScenario();
+    _loadFarmingStructure();
     _tabController = TabController(length: _plotIds.isEmpty ? 1 : _plotIds.length, vsync: this);
   }
 
@@ -45,31 +46,44 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
         ?.requestNotificationsPermission();
   }
 
-  Future<void> _loadFarmingScenario() async {
+  Future<void> _loadFarmingStructure() async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('fielddata')
-          .where('userId', isEqualTo: widget.userId)
+      final structureDoc = await FirebaseFirestore.instance
+          .collection('user_structure')
+          .doc(widget.userId)
           .get();
-      if (snapshot.docs.isEmpty) {
+      if (!structureDoc.exists) {
         await _showOnboardingDialog();
       } else {
+        final data = structureDoc.data()!;
         setState(() {
-          _plotIds = snapshot.docs.map((doc) => doc['plotId'] as String).toList();
-          _farmingScenario = _plotIds.length > 1
-              ? 'multiple'
-              : _plotIds.first.contains('Intercrop')
-                  ? 'intercrop'
-                  : 'single';
-          _tabController.dispose(); // Dispose old controller
+          _farmingScenario = data['structureType'];
+          _plotIds = List<String>.from(data['plotIds']);
+          _tabController.dispose();
           _tabController = TabController(length: _plotIds.length, vsync: this);
         });
+        _checkPlotDataStatus();
       }
     } catch (e) {
       if (mounted) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error loading data: $e')));
+        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error loading structure: $e')));
       }
+    }
+  }
+
+  Future<void> _checkPlotDataStatus() async {
+    for (var plotId in _plotIds) {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('fielddata')
+          .doc(widget.userId)
+          .collection('plots')
+          .doc(plotId)
+          .collection('entries')
+          .get();
+      setState(() {
+        _plotHasData[plotId] = snapshot.docs.isNotEmpty;
+      });
     }
   }
 
@@ -149,9 +163,13 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
                   } else {
                     _plotIds = ['SingleCrop'];
                   }
-                  _tabController.dispose(); // Dispose old controller
+                  _tabController.dispose();
                   _tabController = TabController(length: _plotIds.length, vsync: this);
                 });
+                FirebaseFirestore.instance
+                    .collection('user_structure')
+                    .doc(widget.userId)
+                    .set({'structureType': scenario, 'plotIds': _plotIds});
                 Navigator.pop(dialogContext);
               } else if (mounted) {
                 scaffoldMessenger.showSnackBar(
@@ -166,14 +184,53 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
     );
   }
 
+  Future<void> _deletePlot(String plotId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Deletion'),
+        content: Text('Are you sure you want to delete $plotId?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      setState(() {
+        _plotIds.remove(plotId);
+        _plotHasData.remove(plotId);
+        _tabController.dispose();
+        _tabController = TabController(length: _plotIds.length, vsync: this);
+      });
+      await FirebaseFirestore.instance
+          .collection('user_structure')
+          .doc(widget.userId)
+          .update({'plotIds': _plotIds});
+      await FirebaseFirestore.instance
+          .collection('fielddata')
+          .doc(widget.userId)
+          .collection('plots')
+          .doc(plotId)
+          .delete();
+    }
+  }
+
   void _showFieldHistory() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => PlotSummaryTab(
           userId: widget.userId,
-          plotIds: [], // Empty list to fetch all plots
-          showAll: true, // Flag to indicate fetching all data
+          plotIds: [],
+          showAll: true,
         ),
       ),
     );
@@ -182,9 +239,7 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
   @override
   Widget build(BuildContext context) {
     if (_farmingScenario == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return DefaultTabController(
@@ -198,11 +253,7 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
           ),
           title: const Text(
             'Field Data Input',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
           ),
         ),
         body: Column(
@@ -225,38 +276,63 @@ class _FieldDataInputPageState extends State<FieldDataInputPage> with SingleTick
                   : TabBarView(
                       controller: _tabController,
                       children: _plotIds.map((plotId) {
-                        return PlotInputForm(
-                          userId: widget.userId,
-                          plotId: plotId,
-                          notificationsPlugin: _notificationsPlugin,
+                        return Stack(
+                          children: [
+                            PlotInputForm(
+                              userId: widget.userId,
+                              plotId: plotId,
+                              structureType: _farmingScenario!,
+                              notificationsPlugin: _notificationsPlugin,
+                            ),
+                            if (_plotHasData[plotId] == null || !_plotHasData[plotId]!)
+                              Positioned(
+                                right: 16,
+                                bottom: 16,
+                                child: FloatingActionButton(
+                                  onPressed: () => _deletePlot(plotId),
+                                  backgroundColor: Colors.red,
+                                  child: const Icon(Icons.delete),
+                                ),
+                              ),
+                          ],
                         );
                       }).toList(),
                     ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  ElevatedButton(
-                    onPressed: _showOnboardingDialog,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 3, 39, 4),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: ElevatedButton(
+                        onPressed: _showOnboardingDialog,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromARGB(255, 3, 39, 4),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Redefine Structure', style: TextStyle(fontSize: 16)),
+                      ),
                     ),
-                    child: const Text('Redefine Structure', style: TextStyle(fontSize: 16)),
                   ),
-                  ElevatedButton(
-                    onPressed: _showFieldHistory,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 3, 39, 4),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: ElevatedButton(
+                        onPressed: _showFieldHistory,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromARGB(255, 3, 39, 4),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Retrieve Field History', style: TextStyle(fontSize: 16)),
+                      ),
                     ),
-                    child: const Text('Retrieve Field History', style: TextStyle(fontSize: 16)),
                   ),
                 ],
               ),

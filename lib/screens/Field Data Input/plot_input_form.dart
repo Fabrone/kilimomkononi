@@ -3,16 +3,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:kilimomkononi/models/field_data_model.dart';
-import 'package:kilimomkononi/screens/plot_summary_tab.dart';
+import 'package:kilimomkononi/screens/Field%20Data%20Input/plot_summary_tab.dart';
 
 class PlotInputForm extends StatefulWidget {
   final String userId;
   final String plotId;
+  final String structureType;
   final FlutterLocalNotificationsPlugin notificationsPlugin;
 
   const PlotInputForm({
     required this.userId,
     required this.plotId,
+    required this.structureType,
     required this.notificationsPlugin,
     super.key,
   });
@@ -32,8 +34,8 @@ class _PlotInputFormState extends State<PlotInputForm> {
   final _potassiumController = TextEditingController();
   List<String> _microNutrients = [];
   List<TextEditingController> _microNutrientControllers = [TextEditingController()];
-  List<Map<String, dynamic>> _interventions = [];
-  List<Map<String, dynamic>> _reminders = [];
+  final List<Map<String, dynamic>> _interventions = [];
+  final List<Map<String, dynamic>> _reminders = [];
 
   final List<String> _acreFractions = [
     '1/8 Acre', '1/6 Acre', '1/4 Acre', '1/3 Acre', '1/2 Acre', '2/3 Acre',
@@ -55,7 +57,7 @@ class _PlotInputFormState extends State<PlotInputForm> {
 
   final Map<String, Map<String, Map<String, double>>> _optimalNpk = {
     'Maize': {
-      'Early Growth': {'N': 45, 'P': 28, 'K': 56}, // Average of ranges
+      'Early Growth': {'N': 45, 'P': 28, 'K': 56},
       'Mid Growth': {'N': 84, 'P': 28, 'K': 56},
       'Reproductive': {'N': 0, 'P': 0, 'K': 28},
     },
@@ -158,12 +160,11 @@ class _PlotInputFormState extends State<PlotInputForm> {
   @override
   void initState() {
     super.initState();
-    _loadPlotData();
     _initializeCropFields();
   }
 
   void _initializeCropFields() {
-    if (widget.plotId.contains('Intercrop') && _crops.isEmpty) {
+    if (widget.structureType == 'intercrop' && _crops.isEmpty) {
       setState(() {
         _crops = [
           {'type': '', 'stage': ''},
@@ -179,47 +180,6 @@ class _PlotInputFormState extends State<PlotInputForm> {
         _crops = [{'type': '', 'stage': ''}];
         _cropControllers = [TextEditingController()];
       });
-    }
-  }
-
-  Future<void> _loadPlotData() async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('fielddata')
-          .doc('${widget.userId}_${widget.plotId}')
-          .get();
-      if (doc.exists) {
-        final data = FieldData.fromMap(doc.data()!);
-        setState(() {
-          _crops = data.crops.isNotEmpty ? data.crops : widget.plotId.contains('Intercrop') ? [{'type': '', 'stage': ''}, {'type': '', 'stage': ''}] : [{'type': '', 'stage': ''}];
-          _cropControllers = _crops.map((crop) => TextEditingController(text: crop['type'])).toList();
-          _areaController.text = data.area?.toString() ?? '';
-          _nitrogenController.text = data.npk['N']?.toString() ?? '';
-          _phosphorusController.text = data.npk['P']?.toString() ?? '';
-          _potassiumController.text = data.npk['K']?.toString() ?? '';
-          _microNutrients = data.microNutrients;
-          _microNutrientControllers = data.microNutrients.map((m) => TextEditingController(text: m)).toList();
-          if (_microNutrientControllers.isEmpty) _microNutrientControllers.add(TextEditingController());
-          _interventions = data.interventions;
-          _reminders = data.reminders;
-        });
-      } else if (widget.plotId.contains('Intercrop')) {
-        setState(() {
-          _crops = [
-            {'type': '', 'stage': ''},
-            {'type': '', 'stage': ''},
-          ];
-          _cropControllers = [
-            TextEditingController(),
-            TextEditingController(),
-          ];
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error loading plot data: $e')));
-      }
     }
   }
 
@@ -265,13 +225,18 @@ class _PlotInputFormState extends State<PlotInputForm> {
           interventions: _interventions,
           reminders: _reminders,
           timestamp: Timestamp.now(),
+          structureType: widget.structureType,
         );
         await FirebaseFirestore.instance
             .collection('fielddata')
-            .doc('${widget.userId}_${widget.plotId}')
-            .set(fieldData.toMap());
+            .doc(widget.userId)
+            .collection('plots')
+            .doc(widget.plotId)
+            .collection('entries')
+            .add(fieldData.toMap());
         if (mounted) {
-          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Data saved successfully')));
+          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('New data saved successfully')));
+          _resetForm();
         }
       } catch (e) {
         if (mounted) {
@@ -279,6 +244,21 @@ class _PlotInputFormState extends State<PlotInputForm> {
         }
       }
     }
+  }
+
+  void _resetForm() {
+    setState(() {
+      _areaController.clear();
+      _nitrogenController.clear();
+      _phosphorusController.clear();
+      _potassiumController.clear();
+      _microNutrients.clear();
+      _microNutrientControllers = [TextEditingController()];
+      _interventions.clear();
+      _reminders.clear();
+      _nutrientStatus.clear();
+      _initializeCropFields();
+    });
   }
 
   double _convertFractionToAcres(String fraction) {
@@ -308,10 +288,6 @@ class _PlotInputFormState extends State<PlotInputForm> {
     final tzDayBefore = tz.TZDateTime.from(date.subtract(const Duration(days: 1)), tz.local);
 
     try {
-      await widget.notificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
-
       await widget.notificationsPlugin.zonedSchedule(
         (widget.userId + widget.plotId + date.toString()).hashCode,
         'Reminder for ${widget.plotId}',
@@ -321,7 +297,6 @@ class _PlotInputFormState extends State<PlotInputForm> {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
-
       await widget.notificationsPlugin.zonedSchedule(
         ('${widget.userId}${widget.plotId}${date}dayBefore').hashCode,
         'Upcoming Reminder for ${widget.plotId}',
@@ -331,19 +306,12 @@ class _PlotInputFormState extends State<PlotInputForm> {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
-
       if (mounted) {
         scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Reminders scheduled successfully')));
       }
     } catch (e) {
       if (mounted) {
-        if (e.toString().contains('exact_alarms_not_permitted')) {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('Exact reminders not permitted. Please enable in device settings.')),
-          );
-        } else {
-          scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error scheduling reminder: $e')));
-        }
+        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error scheduling reminder: $e')));
       }
     }
   }
@@ -383,8 +351,8 @@ class _PlotInputFormState extends State<PlotInputForm> {
                 children: [
                   TextFormField(
                     controller: controller,
-                    decoration: _inputDecoration('Crop Type ${idx + 1}'),
-                    validator: (value) => widget.plotId.contains('Intercrop') && idx < 2 && (value == null || value.isEmpty) ? 'Required for Intercrop' : null,
+                    decoration: _inputDecoration('Crop Type'),
+                    validator: (value) => widget.structureType == 'intercrop' && idx < 2 && (value == null || value.isEmpty) ? 'Required for Intercrop' : null,
                     onChanged: (value) {
                       if (idx < _crops.length) {
                         _crops[idx]['type'] = value;
@@ -397,7 +365,7 @@ class _PlotInputFormState extends State<PlotInputForm> {
                 ],
               );
             }),
-            if (widget.plotId.contains('Intercrop'))
+            if (widget.structureType == 'intercrop')
               ElevatedButton(
                 onPressed: () {
                   setState(() {
@@ -548,7 +516,7 @@ class _PlotInputFormState extends State<PlotInputForm> {
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 50),
               ),
-              child: const Text('Save', style: TextStyle(fontSize: 16)),
+              child: const Text('Save New Entry', style: TextStyle(fontSize: 16)),
             ),
             const SizedBox(height: 16),
             Row(
@@ -565,7 +533,7 @@ class _PlotInputFormState extends State<PlotInputForm> {
                     backgroundColor: const Color.fromARGB(255, 3, 39, 4),
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Summary'),
+                  child: const Text('View Summary'),
                 ),
               ],
             ),
@@ -576,10 +544,11 @@ class _PlotInputFormState extends State<PlotInputForm> {
   }
 
   List<Widget> _buildNutrientFields() {
-    final crop = _crops.isNotEmpty ? _crops[0]['type'] : '';
-    final stage = _crops.isNotEmpty ? _crops[0]['stage'] : '';
-    final optimal = _optimalNpk[crop]?[stage?.split('(')[1].replaceAll(')', '')] ?? {'N': 0.0, 'P': 0.0, 'K': 0.0};
-    final fertilizer = _fertilizerRecommendations[crop]?[stage?.split('(')[1].replaceAll(')', '')] ?? '';
+    final crop = _crops.isNotEmpty && _crops[0]['type']!.isNotEmpty ? _crops[0]['type'] : '';
+    final stage = _crops.isNotEmpty && _crops[0]['stage']!.isNotEmpty ? _crops[0]['stage'] : '';
+    final growthStage = stage!.isNotEmpty ? stage.split('(')[1].replaceAll(')', '') : '';
+    final optimal = _optimalNpk[crop]?[growthStage] ?? {'N': 0.0, 'P': 0.0, 'K': 0.0};
+    final fertilizer = _fertilizerRecommendations[crop]?[growthStage] ?? '';
 
     return [
       Padding(
@@ -593,7 +562,7 @@ class _PlotInputFormState extends State<PlotInputForm> {
                 decoration: _inputDecoration('Nitrogen (N)'),
                 keyboardType: TextInputType.number,
                 validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
-                onChanged: (_) => _compareNutrients(crop!, stage!),
+                onChanged: (_) => _compareNutrients(crop!, stage),
               ),
             ),
             const SizedBox(width: 16),
@@ -625,7 +594,7 @@ class _PlotInputFormState extends State<PlotInputForm> {
                 decoration: _inputDecoration('Phosphorus (P)'),
                 keyboardType: TextInputType.number,
                 validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
-                onChanged: (_) => _compareNutrients(crop!, stage!),
+                onChanged: (_) => _compareNutrients(crop!, stage),
               ),
             ),
             const SizedBox(width: 16),
@@ -657,7 +626,7 @@ class _PlotInputFormState extends State<PlotInputForm> {
                 decoration: _inputDecoration('Potassium (K)'),
                 keyboardType: TextInputType.number,
                 validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
-                onChanged: (_) => _compareNutrients(crop!, stage!),
+                onChanged: (_) => _compareNutrients(crop!, stage),
               ),
             ),
             const SizedBox(width: 16),
@@ -712,7 +681,7 @@ class _PlotInputFormState extends State<PlotInputForm> {
         return TextFormField(
           controller: textEditingController,
           focusNode: focusNode,
-          decoration: _inputDecoration('Crop Stage ${index + 1}'),
+          decoration: _inputDecoration('Crop Stage'),
           onFieldSubmitted: (value) {
             if (value.isNotEmpty && index < _crops.length) {
               setState(() {
