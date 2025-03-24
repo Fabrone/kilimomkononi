@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:kilimomkononi/models/user_model.dart';
-import 'package:kilimomkononi/screens/Field%20Data%20Input/field_data_input_page.dart';
+import 'package:kilimomkononi/screens/Field%20Data%20Input/field_data_input_home_page.dart';
 import 'package:kilimomkononi/screens/adminsamplescreen.dart';
 import 'package:kilimomkononi/screens/farm_management_screen.dart';
 import 'package:kilimomkononi/screens/farming_tips_widget.dart';
@@ -458,7 +458,7 @@ class _HomePageState extends State<HomePage> {
             if (_userId != null) {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => FieldDataInputPage(userId: _userId!)),
+                MaterialPageRoute(builder: (context) => const FieldDataInputHomePage()),
               );
             } else {
               logger.w('User ID is null, attempting refresh');

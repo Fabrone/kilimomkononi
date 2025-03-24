@@ -4,15 +4,8 @@ import 'package:kilimomkononi/models/field_data_model.dart';
 
 class PlotSummaryTab extends StatefulWidget {
   final String userId;
-  final List<String> plotIds;
-  final bool showAll;
 
-  const PlotSummaryTab({
-    required this.userId,
-    required this.plotIds,
-    this.showAll = false,
-    super.key,
-  });
+  const PlotSummaryTab({required this.userId, super.key});
 
   @override
   State<PlotSummaryTab> createState() => _PlotSummaryTabState();
@@ -33,77 +26,42 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: widget.showAll ? _buildAllPlotsView() : _buildSpecificPlotsView(),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('fielddata')
+            .where('userId', isEqualTo: widget.userId)
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final entries = snapshot.data!.docs
+              .map((doc) => FieldData.fromMap(doc.data() as Map<String, dynamic>))
+              .toList();
+
+          if (entries.isEmpty) {
+            return const Center(child: Text('No data available.'));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              return _buildPlotCard(entry, snapshot.data!.docs[index].id);
+            },
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildAllPlotsView() {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('user_structure').doc(widget.userId).snapshots(),
-      builder: (context, structureSnapshot) {
-        if (structureSnapshot.hasError) return Center(child: Text('Error: ${structureSnapshot.error}'));
-        if (!structureSnapshot.hasData || structureSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final plotIds = (structureSnapshot.data!.data() as Map<String, dynamic>?)?['plotIds']?.cast<String>() ?? [];
-        if (plotIds.isEmpty) return const Center(child: Text('No plots available.'));
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: plotIds.length,
-          itemBuilder: (context, index) {
-            final plotId = plotIds[index];
-            return StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('fielddata')
-                  .doc(widget.userId)
-                  .collection('plots')
-                  .doc(plotId)
-                  .collection('entries')
-                  .snapshots(),
-              builder: (context, entriesSnapshot) {
-                if (!entriesSnapshot.hasData) return const SizedBox();
-                final entries = entriesSnapshot.data!.docs
-                    .map((doc) => FieldData.fromMap(doc.data() as Map<String, dynamic>))
-                    .toList();
-                return _buildPlotCard(plotId, entries, entriesSnapshot.data!.docs);
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildSpecificPlotsView() {
-    if (widget.plotIds.isEmpty) return const Center(child: Text('No specific plots selected.'));
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: widget.plotIds.length,
-      itemBuilder: (context, index) {
-        final plotId = widget.plotIds[index];
-        return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('fielddata')
-              .doc(widget.userId)
-              .collection('plots')
-              .doc(plotId)
-              .collection('entries')
-              .snapshots(),
-          builder: (context, entriesSnapshot) {
-            if (!entriesSnapshot.hasData) return const SizedBox();
-            final entries = entriesSnapshot.data!.docs
-                .map((doc) => FieldData.fromMap(doc.data() as Map<String, dynamic>))
-                .toList();
-            return _buildPlotCard(plotId, entries, entriesSnapshot.data!.docs);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildPlotCard(String plotId, List<FieldData> entries, List<QueryDocumentSnapshot> docs) {
+  Widget _buildPlotCard(FieldData entry, String docId) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -111,59 +69,57 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: ExpansionTile(
         title: Text(
-          plotId,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 3, 39, 4)),
+          '${entry.plotId} - ${entry.timestamp.toDate().toString().substring(0, 16)}',
+          style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color.fromARGB(255, 3, 39, 4)),
         ),
-        children: entries.isEmpty
-            ? [const Padding(padding: EdgeInsets.all(16), child: Text('No data available.'))]
-            : entries.asMap().entries.map((entry) {
-                final index = entry.key;
-                final plot = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            plot.timestamp.toDate().toString().substring(0, 16),
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _editPlot(context, plot, docs[index].id),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deletePlot(context, plotId, docs[index].id),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      _buildFieldRow('Crops', plot.crops.isNotEmpty
-                          ? plot.crops.map((c) => '${c['type']} (${c['stage']})').join(', ')
-                          : 'None'),
-                      _buildFieldRow('Area', plot.area != null ? '${plot.area} Acres' : 'None'),
-                      _buildFieldRow('Nitrogen (N)', plot.npk['N'] != null ? '${plot.npk['N']}' : 'None'),
-                      _buildFieldRow('Phosphorus (P)', plot.npk['P'] != null ? '${plot.npk['P']}' : 'None'),
-                      _buildFieldRow('Potassium (K)', plot.npk['K'] != null ? '${plot.npk['K']}' : 'None'),
-                      _buildFieldRow('Micro-Nutrients', plot.microNutrients.isNotEmpty ? plot.microNutrients.join(', ') : 'None'),
-                      _buildFieldRow('Interventions', plot.interventions.isNotEmpty
-                          ? plot.interventions.map((i) => '${i['type']} (${i['quantity']} ${i['unit']})').join(', ')
-                          : 'None'),
-                      _buildFieldRow('Reminders', plot.reminders.isNotEmpty
-                          ? plot.reminders.map((r) => '${r['activity']} (${r['date'].toDate().toString().substring(0, 10)})').join(', ')
-                          : 'None'),
-                    ],
-                  ),
-                );
-              }).toList(),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () => _editPlot(context, entry, docId),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _deletePlot(context, docId),
+                    ),
+                  ],
+                ),
+                _buildFieldRow('Crops', entry.crops.isNotEmpty
+                    ? entry.crops.map((c) => '${c['type']} (${c['stage']})').join(', ')
+                    : 'None'),
+                _buildFieldRow('Area', entry.area != null ? '${entry.area} Acres' : 'None'),
+                _buildFieldRow('Nitrogen (N)', entry.npk['N'] != null ? '${entry.npk['N']}' : 'None'),
+                _buildFieldRow('Phosphorus (P)', entry.npk['P'] != null ? '${entry.npk['P']}' : 'None'),
+                _buildFieldRow('Potassium (K)', entry.npk['K'] != null ? '${entry.npk['K']}' : 'None'),
+                _buildFieldRow('Micro-Nutrients',
+                    entry.microNutrients.isNotEmpty ? entry.microNutrients.join(', ') : 'None'),
+                _buildFieldRow('Interventions', entry.interventions.isNotEmpty
+                    ? entry.interventions
+                        .map((i) => '${i['type']} (${i['quantity']} ${i['unit']})')
+                        .join(', ')
+                    : 'None'),
+                _buildFieldRow('Reminders', entry.reminders.isNotEmpty
+                    ? entry.reminders
+                        .map((r) =>
+                            '${r['activity']} (${r['date'].toDate().toString().substring(0, 10)})')
+                        .join(', ')
+                    : 'None'),
+                _buildFieldRow('Fertilizer Recommendation',
+                    entry.fertilizerRecommendation ?? 'None'),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -174,23 +130,35 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$label: ', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 16, color: Colors.black))),
+          Text('$label: ',
+              style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+          Expanded(
+              child: Text(value,
+                  style: const TextStyle(fontSize: 16, color: Colors.black))),
         ],
       ),
     );
   }
 
-  Future<void> _editPlot(BuildContext context, FieldData plot, String entryId) async {
+  Future<void> _editPlot(BuildContext context, FieldData plot, String docId) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final List<TextEditingController> cropControllers = plot.crops.map((c) => TextEditingController(text: c['type'])).toList();
-    final List<TextEditingController> stageControllers = plot.crops.map((c) => TextEditingController(text: c['stage'])).toList();
-    final TextEditingController areaController = TextEditingController(text: plot.area?.toString());
-    final TextEditingController nitrogenController = TextEditingController(text: plot.npk['N']?.toString());
-    final TextEditingController phosphorusController = TextEditingController(text: plot.npk['P']?.toString());
-    final TextEditingController potassiumController = TextEditingController(text: plot.npk['K']?.toString());
-    final List<TextEditingController> microNutrientControllers =
-        plot.microNutrients.map((m) => TextEditingController(text: m)).toList()..add(TextEditingController());
+    final List<TextEditingController> cropControllers =
+        plot.crops.map((c) => TextEditingController(text: c['type'])).toList();
+    final List<TextEditingController> stageControllers =
+        plot.crops.map((c) => TextEditingController(text: c['stage'])).toList();
+    final TextEditingController areaController =
+        TextEditingController(text: plot.area?.toString());
+    final TextEditingController nitrogenController =
+        TextEditingController(text: plot.npk['N']?.toString());
+    final TextEditingController phosphorusController =
+        TextEditingController(text: plot.npk['P']?.toString());
+    final TextEditingController potassiumController =
+        TextEditingController(text: plot.npk['K']?.toString());
+    final List<TextEditingController> microNutrientControllers = plot.microNutrients
+        .map((m) => TextEditingController(text: m))
+        .toList()
+      ..add(TextEditingController());
 
     List<Map<String, String>> editedCrops = List.from(plot.crops);
     List<String> editedMicroNutrients = List.from(plot.microNutrients);
@@ -271,15 +239,19 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
                   )).toList(),
                 ),
                 ElevatedButton(
-                  onPressed: () => setState(() => microNutrientControllers.add(TextEditingController())),
+                  onPressed: () =>
+                      setState(() => microNutrientControllers.add(TextEditingController())),
                   child: const Text('Add Another Micro-Nutrient'),
                 ),
                 Wrap(
                   spacing: 8,
-                  children: editedMicroNutrients.map((m) => Chip(
-                    label: Text(m),
-                    onDeleted: () => setState(() => editedMicroNutrients.remove(m)),
-                  )).toList(),
+                  children: editedMicroNutrients
+                      .map((m) => Chip(
+                            label: Text(m),
+                            onDeleted: () =>
+                                setState(() => editedMicroNutrients.remove(m)),
+                          ))
+                      .toList(),
                 ),
               ],
             ),
@@ -292,7 +264,10 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
           ),
           TextButton(
             onPressed: () {
-              editedMicroNutrients = microNutrientControllers.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
+              editedMicroNutrients = microNutrientControllers
+                  .map((c) => c.text.trim())
+                  .where((t) => t.isNotEmpty)
+                  .toList();
               editedCrops = cropControllers.asMap().entries.map((entry) {
                 int idx = entry.key;
                 return {
@@ -315,44 +290,49 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
         crops: editedCrops,
         area: areaController.text.isNotEmpty ? double.parse(areaController.text) : null,
         npk: {
-          'N': nitrogenController.text.isNotEmpty ? double.parse(nitrogenController.text) : null,
-          'P': phosphorusController.text.isNotEmpty ? double.parse(phosphorusController.text) : null,
-          'K': potassiumController.text.isNotEmpty ? double.parse(potassiumController.text) : null,
+          'N': nitrogenController.text.isNotEmpty
+              ? double.parse(nitrogenController.text)
+              : null,
+          'P': phosphorusController.text.isNotEmpty
+              ? double.parse(phosphorusController.text)
+              : null,
+          'K': potassiumController.text.isNotEmpty
+              ? double.parse(potassiumController.text)
+              : null,
         },
         microNutrients: editedMicroNutrients,
         interventions: editedInterventions,
         reminders: editedReminders,
         timestamp: Timestamp.now(),
         structureType: plot.structureType,
+        fertilizerRecommendation: plot.fertilizerRecommendation,
       );
 
       try {
         await FirebaseFirestore.instance
             .collection('fielddata')
-            .doc(widget.userId)
-            .collection('plots')
-            .doc(plot.plotId)
-            .collection('entries')
-            .doc(entryId)
+            .doc(docId)
             .set(updatedFieldData.toMap());
         if (mounted) {
-          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Entry updated successfully')));
+          scaffoldMessenger
+              .showSnackBar(const SnackBar(content: Text('Entry updated successfully')));
         }
       } catch (e) {
         if (mounted) {
-          scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error updating entry: $e')));
+          scaffoldMessenger
+              .showSnackBar(SnackBar(content: Text('Error updating entry: $e')));
         }
       }
     }
   }
 
-  Future<void> _deletePlot(BuildContext context, String plotId, String entryId) async {
+  Future<void> _deletePlot(BuildContext context, String docId) async {
     final messenger = ScaffoldMessenger.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Deletion'),
-        content: Text('Are you sure you want to delete this entry for $plotId?'),
+        content: const Text('Are you sure you want to delete this entry?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -368,20 +348,15 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
 
     if (confirm == true && mounted) {
       try {
-        await FirebaseFirestore.instance
-            .collection('fielddata')
-            .doc(widget.userId)
-            .collection('plots')
-            .doc(plotId)
-            .collection('entries')
-            .doc(entryId)
-            .delete();
+        await FirebaseFirestore.instance.collection('fielddata').doc(docId).delete();
         if (mounted) {
-          messenger.showSnackBar(const SnackBar(content: Text('Entry deleted successfully')));
+          messenger
+              .showSnackBar(const SnackBar(content: Text('Entry deleted successfully')));
         }
       } catch (e) {
         if (mounted) {
-          messenger.showSnackBar(SnackBar(content: Text('Error deleting entry: $e')));
+          messenger
+              .showSnackBar(SnackBar(content: Text('Error deleting entry: $e')));
         }
       }
     }

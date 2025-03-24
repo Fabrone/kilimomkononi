@@ -4,6 +4,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:kilimomkononi/screens/Field%20Data%20Input/plot_summary_tab.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:kilimomkononi/models/field_data_model.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 abstract class PlotInputForm extends StatefulWidget {
   final String userId;
@@ -82,8 +84,50 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
   String _fertilizerRecommendation = '';
 
   static const List<String> _acreFractions = [
-    '1/8 Acre', '1/6 Acre', '1/4 Acre', '1/3 Acre', '1/2 Acre', '2/3 Acre',
-    '3/4 Acre', '1 Acre', '1 1/2 Acres', '2 Acres', '3 Acres', '4 Acres'
+    '1/10 Acre', '1/9 Acre', '1/8 Acre', '1/7 Acre', '1/6 Acre', '1/5 Acre', '1/4 Acre', 
+    '2/7 Acre', '1/3 Acre', '2/5 Acre', '3/7 Acre', '1/2 Acre', '4/7 Acre', '3/5 Acre', 
+    '2/3 Acre', '5/7 Acre', '3/4 Acre', '4/5 Acre', '5/6 Acre', '6/7 Acre', '7/8 Acre', 
+    '8/9 Acre', '9/10 Acre', '1 Acre', '1 1/10 Acres', '1 1/9 Acres', '1 1/8 Acres', 
+    '1 1/7 Acres', '1 1/6 Acres', '1 1/5 Acres', '1 1/4 Acres', '1 2/7 Acres', '1 1/3 Acres', 
+    '1 2/5 Acres', '1 3/7 Acres', '1 1/2 Acres', '1 4/7 Acres', '1 3/5 Acres', '1 2/3 Acres', 
+    '1 5/7 Acres', '1 3/4 Acres', '1 4/5 Acres', '1 5/6 Acres', '1 6/7 Acres', '1 7/8 Acres', 
+    '1 8/9 Acres', '1 9/10 Acres', '2 Acres', '2 1/10 Acres', '2 1/9 Acres', '2 1/8 Acres', 
+    '2 1/7 Acres', '2 1/6 Acres', '2 1/5 Acres', '2 1/4 Acres', '2 2/7 Acres', '2 1/3 Acres', 
+    '2 2/5 Acres', '2 3/7 Acres', '2 1/2 Acres', '2 4/7 Acres', '2 3/5 Acres', '2 2/3 Acres', 
+    '2 5/7 Acres', '2 3/4 Acres', '2 4/5 Acres', '2 5/6 Acres', '2 6/7 Acres', '2 7/8 Acres', 
+    '2 8/9 Acres', '2 9/10 Acres', '3 Acres', '3 1/10 Acres', '3 1/9 Acres', '3 1/8 Acres', 
+    '3 1/7 Acres', '3 1/6 Acres', '3 1/5 Acres', '3 1/4 Acres', '3 2/7 Acres', '3 1/3 Acres', 
+    '3 2/5 Acres', '3 3/7 Acres', '3 1/2 Acres', '3 4/7 Acres', '3 3/5 Acres', '3 2/3 Acres', 
+    '3 5/7 Acres', '3 3/4 Acres', '3 4/5 Acres', '3 5/6 Acres', '3 6/7 Acres', '3 7/8 Acres', 
+    '3 8/9 Acres', '3 9/10 Acres', '4 Acres', '4 1/10 Acres', '4 1/9 Acres', '4 1/8 Acres', 
+    '4 1/7 Acres', '4 1/6 Acres', '4 1/5 Acres', '4 1/4 Acres', '4 2/7 Acres', '4 1/3 Acres', 
+    '4 2/5 Acres', '4 3/7 Acres', '4 1/2 Acres', '4 4/7 Acres', '4 3/5 Acres', '4 2/3 Acres', 
+    '4 5/7 Acres', '4 3/4 Acres', '4 4/5 Acres', '4 5/6 Acres', '4 6/7 Acres', '4 7/8 Acres', 
+    '4 8/9 Acres', '4 9/10 Acres', '5 Acres', '5 1/10 Acres', '5 1/9 Acres', '5 1/8 Acres', 
+    '5 1/7 Acres', '5 1/6 Acres', '5 1/5 Acres', '5 1/4 Acres', '5 2/7 Acres', '5 1/3 Acres', 
+    '5 2/5 Acres', '5 3/7 Acres', '5 1/2 Acres', '5 4/7 Acres', '5 3/5 Acres', '5 2/3 Acres', 
+    '5 5/7 Acres', '5 3/4 Acres', '5 4/5 Acres', '5 5/6 Acres', '5 6/7 Acres', '5 7/8 Acres', 
+    '5 8/9 Acres', '5 9/10 Acres', '6 Acres', '6 1/10 Acres', '6 1/9 Acres', '6 1/8 Acres', 
+    '6 1/7 Acres', '6 1/6 Acres', '6 1/5 Acres', '6 1/4 Acres', '6 2/7 Acres', '6 1/3 Acres', 
+    '6 2/5 Acres', '6 3/7 Acres', '6 1/2 Acres', '6 4/7 Acres', '6 3/5 Acres', '6 2/3 Acres', 
+    '6 5/7 Acres', '6 3/4 Acres', '6 4/5 Acres', '6 5/6 Acres', '6 6/7 Acres', '6 7/8 Acres', 
+    '6 8/9 Acres', '6 9/10 Acres', '7 Acres', '7 1/10 Acres', '7 1/9 Acres', '7 1/8 Acres', 
+    '7 1/7 Acres', '7 1/6 Acres', '7 1/5 Acres', '7 1/4 Acres', '7 2/7 Acres', '7 1/3 Acres', 
+    '7 2/5 Acres', '7 3/7 Acres', '7 1/2 Acres', '7 4/7 Acres', '7 3/5 Acres', '7 2/3 Acres', 
+    '7 5/7 Acres', '7 3/4 Acres', '7 4/5 Acres', '7 5/6 Acres', '7 6/7 Acres', '7 7/8 Acres', 
+    '7 8/9 Acres', '7 9/10 Acres', '8 Acres', '8 1/10 Acres', '8 1/9 Acres', '8 1/8 Acres', 
+    '8 1/7 Acres', '8 1/6 Acres', '8 1/5 Acres', '8 1/4 Acres', '8 2/7 Acres', '8 1/3 Acres', 
+    '8 2/5 Acres', '8 3/7 Acres', '8 1/2 Acres', '8 4/7 Acres', '8 3/5 Acres', '8 2/3 Acres', 
+    '8 5/7 Acres', '8 3/4 Acres', '8 4/5 Acres', '8 5/6 Acres', '8 6/7 Acres', '8 7/8 Acres', 
+    '8 8/9 Acres', '8 9/10 Acres', '9 Acres', '9 1/10 Acres', '9 1/9 Acres', '9 1/8 Acres', 
+    '9 1/7 Acres', '9 1/6 Acres', '9 1/5 Acres', '9 1/4 Acres', '9 2/7 Acres', '9 1/3 Acres', 
+    '9 2/5 Acres', '9 3/7 Acres', '9 1/2 Acres', '9 4/7 Acres', '9 3/5 Acres', '9 2/3 Acres', 
+    '9 5/7 Acres', '9 3/4 Acres', '9 4/5 Acres', '9 5/6 Acres', '9 6/7 Acres', '9 7/8 Acres', 
+    '9 8/9 Acres', '9 9/10 Acres', '10 Acres', '10 1/10 Acres', '10 1/9 Acres', '10 1/8 Acres', 
+    '10 1/7 Acres', '10 1/6 Acres', '10 1/5 Acres', '10 1/4 Acres', '10 2/7 Acres', '10 1/3 Acres', 
+    '10 2/5 Acres', '10 3/7 Acres', '10 1/2 Acres', '10 4/7 Acres', '10 3/5 Acres', '10 2/3 Acres', 
+    '10 5/7 Acres', '10 3/4 Acres', '10 4/5 Acres', '10 5/6 Acres', '10 6/7 Acres', '10 7/8 Acres', 
+    '10 8/9 Acres', '10 9/10 Acres'
   ];
 
   static const List<String> _cropTypes = [
@@ -212,7 +256,10 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
   Future<void> _saveForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-      _microNutrients = _microNutrientControllers.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
+      _microNutrients = _microNutrientControllers
+          .map((c) => c.text.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
 
       for (int i = 0; i < _crops.length; i++) {
         _crops[i]['type'] = _cropControllers[i].text;
@@ -240,33 +287,46 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
         crops: _crops,
         area: areaInAcres,
         npk: {
-          'N': _nitrogenController.text.isNotEmpty ? double.parse(_nitrogenController.text) : null,
-          'P': _phosphorusController.text.isNotEmpty ? double.parse(_phosphorusController.text) : null,
-          'K': _potassiumController.text.isNotEmpty ? double.parse(_potassiumController.text) : null,
+          'N': _nitrogenController.text.isNotEmpty
+              ? double.parse(_nitrogenController.text)
+              : null,
+          'P': _phosphorusController.text.isNotEmpty
+              ? double.parse(_phosphorusController.text)
+              : null,
+          'K': _potassiumController.text.isNotEmpty
+              ? double.parse(_potassiumController.text)
+              : null,
         },
         microNutrients: _microNutrients,
         interventions: _interventions,
         reminders: _reminders,
         timestamp: Timestamp.now(),
         structureType: widget.structureType,
+        fertilizerRecommendation: _fertilizerRecommendation,
       );
 
       try {
         await FirebaseFirestore.instance
             .collection('fielddata')
-            .doc(widget.userId)
-            .collection('plots')
-            .doc(widget.plotId)
-            .collection('entries')
-            .add(fieldData.toMap());
-        widget.onSave(); // Save structure to Firestore when data is added
+            .doc('${widget.userId}_${fieldData.timestamp.millisecondsSinceEpoch}')
+            .set(fieldData.toMap());
+        widget.onSave();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data saved successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Data saved successfully')));
           _resetForm();
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error saving data: $e')));
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(
+              'offline_fielddata_${widget.userId}_${fieldData.timestamp.millisecondsSinceEpoch}',
+              jsonEncode(fieldData.toMap()));
+          if (mounted) { 
+            ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Saved offline, will sync when online')));
+            _resetForm();
+          }
         }
       }
     }
@@ -319,7 +379,8 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
     );
     const notificationDetails = NotificationDetails(android: androidDetails);
     final tzDateTime = tz.TZDateTime.from(date, tz.local);
-    final tzDayBefore = tz.TZDateTime.from(date.subtract(const Duration(days: 1)), tz.local);
+    final tzDayBefore =
+        tz.TZDateTime.from(date.subtract(const Duration(days: 1)), tz.local);
 
     try {
       await widget.notificationsPlugin.zonedSchedule(
@@ -329,7 +390,8 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
         tzDateTime,
         notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
       await widget.notificationsPlugin.zonedSchedule(
         ('${widget.userId}${widget.plotId}${date}dayBefore').hashCode,
@@ -338,14 +400,17 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
         tzDayBefore,
         notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reminders scheduled successfully')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Reminders scheduled successfully')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error scheduling reminder: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error scheduling reminder: $e')));
       }
     }
   }
@@ -357,13 +422,22 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
     setState(() {
       _nutrientStatus.clear();
       _fertilizerRecommendation = fertilizer;
-      final n = _nitrogenController.text.isNotEmpty ? double.parse(_nitrogenController.text) : 0;
-      final p = _phosphorusController.text.isNotEmpty ? double.parse(_phosphorusController.text) : 0;
-      final k = _potassiumController.text.isNotEmpty ? double.parse(_potassiumController.text) : 0;
+      final n = _nitrogenController.text.isNotEmpty
+          ? double.parse(_nitrogenController.text)
+          : 0;
+      final p = _phosphorusController.text.isNotEmpty
+          ? double.parse(_phosphorusController.text)
+          : 0;
+      final k = _potassiumController.text.isNotEmpty
+          ? double.parse(_potassiumController.text)
+          : 0;
 
-      _nutrientStatus['N'] = n < optimal['N']! ? 'Low' : n > optimal['N']! ? 'High' : 'Optimal';
-      _nutrientStatus['P'] = p < optimal['P']! ? 'Low' : p > optimal['P']! ? 'High' : 'Optimal';
-      _nutrientStatus['K'] = k < optimal['K']! ? 'Low' : k > optimal['K']! ? 'High' : 'Optimal';
+      _nutrientStatus['N'] =
+          n < optimal['N']! ? 'Low' : n > optimal['N']! ? 'High' : 'Optimal';
+      _nutrientStatus['P'] =
+          p < optimal['P']! ? 'Low' : p > optimal['P']! ? 'High' : 'Optimal';
+      _nutrientStatus['K'] =
+          k < optimal['K']! ? 'Low' : k > optimal['K']! ? 'High' : 'Optimal';
     });
   }
 
@@ -376,7 +450,8 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Add Crop', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Add Crop',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._crops.asMap().entries.map((entry) {
               final idx = entry.key;
@@ -426,23 +501,33 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
               ),
             const SizedBox(height: 16),
 
-            const Text('Plot Area', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Plot Area',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             _useAcres
                 ? Autocomplete<String>(
                     optionsBuilder: (TextEditingValue textEditingValue) {
-                      if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
-                      return _acreFractions.where((option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                      if (textEditingValue.text.isEmpty) {
+                        return const Iterable<String>.empty();
+                      }
+                      return _acreFractions.where((option) => option
+                          .toLowerCase()
+                          .contains(textEditingValue.text.toLowerCase()));
                     },
-                    onSelected: (String selection) => _areaController.text = selection,
-                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    onSelected: (String selection) =>
+                        _areaController.text = selection,
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onFieldSubmitted) {
                       _areaController.text = controller.text;
                       return TextFormField(
                         controller: controller,
                         focusNode: focusNode,
                         decoration: _inputDecoration('Area (Acres)'),
                         keyboardType: TextInputType.text,
-                        validator: (value) => value != null && value.isNotEmpty && !_acreFractions.contains(value) && double.tryParse(value) == null ? 'Enter a valid number or fraction' : null,
+                        validator: (value) =>
+                            value != null && value.isNotEmpty && !_acreFractions.contains(value) && double.tryParse(value) == null
+                                ? 'Enter a valid number or fraction'
+                                : null,
                       );
                     },
                   )
@@ -450,7 +535,9 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
                     controller: _areaController,
                     decoration: _inputDecoration('Area (SQM)'),
                     keyboardType: TextInputType.number,
-                    validator: (value) => value != null && value.isNotEmpty && double.tryParse(value) == null ? 'Enter a valid number' : null,
+                    validator: (value) => value != null && value.isNotEmpty && double.tryParse(value) == null
+                        ? 'Enter a valid number'
+                        : null,
                   ),
             SwitchListTile(
               title: const Text('Use Acres'),
@@ -460,41 +547,65 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
             ),
             const SizedBox(height: 16),
 
-            const Text('Soil Nutrient Levels', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Soil Nutrient Levels',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._buildNutrientFields(),
             const SizedBox(height: 16),
 
-            const Text('Nutrient Analysis & Recommendations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Nutrient Analysis & Recommendations',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (_nutrientStatus.isNotEmpty)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('N Status: ${_nutrientStatus['N']}', style: TextStyle(color: _nutrientStatus['N'] == 'Low' ? Colors.red : _nutrientStatus['N'] == 'High' ? Colors.orange : Colors.green)),
-                  Text('P Status: ${_nutrientStatus['P']}', style: TextStyle(color: _nutrientStatus['P'] == 'Low' ? Colors.red : _nutrientStatus['P'] == 'High' ? Colors.orange : Colors.green)),
-                  Text('K Status: ${_nutrientStatus['K']}', style: TextStyle(color: _nutrientStatus['K'] == 'Low' ? Colors.red : _nutrientStatus['K'] == 'High' ? Colors.orange : Colors.green)),
-                  if (_fertilizerRecommendation.isNotEmpty) Text('Recommended Fertilizer: $_fertilizerRecommendation', style: const TextStyle(color: Colors.blue)),
+                  Text('N Status: ${_nutrientStatus['N']}',
+                      style: TextStyle(
+                          color: _nutrientStatus['N'] == 'Low'
+                              ? Colors.red
+                              : _nutrientStatus['N'] == 'High'
+                                  ? Colors.orange
+                                  : Colors.green)),
+                  Text('P Status: ${_nutrientStatus['P']}',
+                      style: TextStyle(
+                          color: _nutrientStatus['P'] == 'Low'
+                              ? Colors.red
+                              : _nutrientStatus['P'] == 'High'
+                                  ? Colors.orange
+                                  : Colors.green)),
+                  Text('K Status: ${_nutrientStatus['K']}',
+                      style: TextStyle(
+                          color: _nutrientStatus['K'] == 'Low'
+                              ? Colors.red
+                              : _nutrientStatus['K'] == 'High'
+                                  ? Colors.orange
+                                  : Colors.green)),
+                  if (_fertilizerRecommendation.isNotEmpty)
+                    Text('Recommended Fertilizer: $_fertilizerRecommendation',
+                        style: const TextStyle(color: Colors.blue)),
                 ],
               ),
             const SizedBox(height: 16),
 
-            const Text('Micro-Nutrients', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Micro-Nutrients',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._microNutrientControllers.map((controller) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: TextFormField(
-                controller: controller,
-                decoration: _inputDecoration('Micro-Nutrient'),
-                onFieldSubmitted: (value) {
-                  if (value.isNotEmpty && !_microNutrients.contains(value)) {
-                    setState(() => _microNutrients.add(value));
-                  }
-                },
-              ),
-            )),
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: TextFormField(
+                    controller: controller,
+                    decoration: _inputDecoration('Micro-Nutrient'),
+                    onFieldSubmitted: (value) {
+                      if (value.isNotEmpty && !_microNutrients.contains(value)) {
+                        setState(() => _microNutrients.add(value));
+                      }
+                    },
+                  ),
+                )),
             ElevatedButton(
-              onPressed: () => setState(() => _microNutrientControllers.add(TextEditingController())),
+              onPressed: () =>
+                  setState(() => _microNutrientControllers.add(TextEditingController())),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 3, 39, 4),
                 foregroundColor: Colors.white,
@@ -503,19 +614,24 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
             ),
             Wrap(
               spacing: 8,
-              children: _microNutrients.map((m) => Chip(
-                label: Text(m),
-                onDeleted: () => setState(() => _microNutrients.remove(m)),
-              )).toList(),
+              children: _microNutrients
+                  .map((m) => Chip(
+                        label: Text(m),
+                        onDeleted: () => setState(() => _microNutrients.remove(m)),
+                      ))
+                  .toList(),
             ),
             const SizedBox(height: 16),
 
-            const Text('Interventions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Interventions',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ElevatedButton(
               onPressed: () async {
                 final intervention = await _showInterventionDialog();
-                if (intervention != null) setState(() => _interventions.add(intervention));
+                if (intervention != null) {
+                  setState(() => _interventions.add(intervention));
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 3, 39, 4),
@@ -524,15 +640,17 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
               child: const Text('Add Intervention'),
             ),
             ..._interventions.map((i) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: ListTile(
-                title: Text('${i['type']} - ${i['quantity']} ${i['unit']}'),
-                subtitle: Text((i['date'] as Timestamp).toDate().toString().substring(0, 10)),
-              ),
-            )),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListTile(
+                    title: Text('${i['type']} - ${i['quantity']} ${i['unit']}'),
+                    subtitle:
+                        Text((i['date'] as Timestamp).toDate().toString().substring(0, 10)),
+                  ),
+                )),
             const SizedBox(height: 16),
 
-            const Text('Reminders', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Reminders',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ElevatedButton(
               onPressed: () async {
@@ -549,12 +667,12 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
               child: const Text('Add Reminder'),
             ),
             ..._reminders.map((r) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: ListTile(
-                title: Text(r['activity']),
-                subtitle: Text(r['date'].toDate().toString().substring(0, 10)),
-              ),
-            )),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListTile(
+                    title: Text(r['activity']),
+                    subtitle: Text(r['date'].toDate().toString().substring(0, 10)),
+                  ),
+                )),
             const SizedBox(height: 16),
 
             ElevatedButton(
@@ -574,7 +692,8 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => PlotSummaryTab(userId: widget.userId, plotIds: [widget.plotId]),
+                      builder: (context) =>
+                          PlotSummaryTab(userId: widget.userId),
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -593,7 +712,9 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
 
   Widget _buildCropTypeField(int index) {
     return DropdownButtonFormField<String>(
-      value: _cropControllers[index].text.isEmpty ? null : _cropControllers[index].text,
+      value: _cropControllers[index].text.isEmpty
+          ? null
+          : _cropControllers[index].text,
       decoration: _inputDecoration('Crop Type'),
       items: _cropTypes.map((crop) => DropdownMenuItem(value: crop, child: Text(crop))).toList(),
       onChanged: (value) {
@@ -602,7 +723,8 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
           _crops[index]['type'] = value ?? '';
           _stageControllers[index].clear();
           _crops[index]['stage'] = '';
-          if (_cropTypes.contains(value) && _cropStages[value]!.contains(_crops[index]['stage'])) {
+          if (_cropTypes.contains(value) &&
+              _cropStages[value]!.contains(_crops[index]['stage'])) {
             _updateNutrientStatus(value!, _crops[index]['stage']!);
           } else {
             _nutrientStatus.clear();
@@ -611,7 +733,9 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
         });
       },
       isExpanded: true,
-      validator: (value) => widget.structureType == 'intercrop' && index < 2 && (value == null || value.isEmpty) ? 'Required for Intercrop' : null,
+      validator: (value) => widget.structureType == 'intercrop' && index < 2 && (value == null || value.isEmpty)
+          ? 'Required for Intercrop'
+          : null,
     );
   }
 
@@ -620,7 +744,9 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
     final stages = _cropStages[crop] ?? ['Custom'];
 
     return DropdownButtonFormField<String>(
-      value: _stageControllers[index].text.isEmpty ? null : _stageControllers[index].text,
+      value: _stageControllers[index].text.isEmpty
+          ? null
+          : _stageControllers[index].text,
       decoration: _inputDecoration('Crop Stage'),
       items: stages.map((stage) => DropdownMenuItem(value: stage, child: Text(stage))).toList(),
       onChanged: (value) {
@@ -640,8 +766,10 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
   }
 
   List<Widget> _buildNutrientFields() {
-    final crop = _crops.isNotEmpty && _crops[0]['type']!.isNotEmpty ? _crops[0]['type'] : '';
-    final stage = _crops.isNotEmpty && _crops[0]['stage']!.isNotEmpty ? _crops[0]['stage'] : '';
+    final crop =
+        _crops.isNotEmpty && _crops[0]['type']!.isNotEmpty ? _crops[0]['type'] : '';
+    final stage =
+        _crops.isNotEmpty && _crops[0]['stage']!.isNotEmpty ? _crops[0]['stage'] : '';
     final optimal = _optimalNpk[crop]?[stage] ?? {'N': 0.0, 'P': 0.0, 'K': 0.0};
 
     return [
@@ -653,14 +781,17 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
               controller: _nitrogenController,
               decoration: _inputDecoration('Nitrogen (N)'),
               keyboardType: TextInputType.number,
-              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
+              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null
+                  ? 'Enter a valid number'
+                  : null,
               onChanged: (_) => _updateNutrientStatus(crop!, stage!),
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
             flex: 2,
-            child: Text('Optimal: ${optimal['N']}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+            child: Text('Optimal: ${optimal['N']}',
+                style: const TextStyle(fontSize: 14, color: Colors.black54)),
           ),
         ],
       ),
@@ -673,14 +804,17 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
               controller: _phosphorusController,
               decoration: _inputDecoration('Phosphorus (P)'),
               keyboardType: TextInputType.number,
-              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
+              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null
+                  ? 'Enter a valid number'
+                  : null,
               onChanged: (_) => _updateNutrientStatus(crop!, stage!),
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
             flex: 2,
-            child: Text('Optimal: ${optimal['P']}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+            child: Text('Optimal: ${optimal['P']}',
+                style: const TextStyle(fontSize: 14, color: Colors.black54)),
           ),
         ],
       ),
@@ -693,14 +827,17 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
               controller: _potassiumController,
               decoration: _inputDecoration('Potassium (K)'),
               keyboardType: TextInputType.number,
-              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
+              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null
+                  ? 'Enter a valid number'
+                  : null,
               onChanged: (_) => _updateNutrientStatus(crop!, stage!),
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
             flex: 2,
-            child: Text('Optimal: ${optimal['K']}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+            child: Text('Optimal: ${optimal['K']}',
+                style: const TextStyle(fontSize: 14, color: Colors.black54)),
           ),
         ],
       ),
@@ -710,7 +847,8 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
   InputDecoration _inputDecoration(String label) => InputDecoration(
         labelText: label,
         enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-        focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.green)),
+        focusedBorder:
+            const OutlineInputBorder(borderSide: BorderSide(color: Colors.green)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       );
 
@@ -773,7 +911,9 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
           ),
           TextButton(
             onPressed: () {
-              final quantity = quantityText != null && quantityText!.isNotEmpty ? double.tryParse(quantityText!) : null;
+              final quantity = quantityText != null && quantityText!.isNotEmpty
+                  ? double.tryParse(quantityText!)
+                  : null;
               if (type != null && type!.isNotEmpty) {
                 Navigator.pop(context, {
                   'type': type,
@@ -829,9 +969,9 @@ class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, {
-              'date': Timestamp.fromDate(date!),
-              'activity': activity,
-            }),
+                  'date': Timestamp.fromDate(date!),
+                  'activity': activity,
+                }),
             child: const Text('OK'),
           ),
         ],
