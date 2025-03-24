@@ -33,30 +33,21 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: widget.showAll
-          ? _buildAllPlotsView()
-          : _buildSpecificPlotsView(),
+      body: widget.showAll ? _buildAllPlotsView() : _buildSpecificPlotsView(),
     );
   }
 
   Widget _buildAllPlotsView() {
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('user_structure')
-          .doc(widget.userId)
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('user_structure').doc(widget.userId).snapshots(),
       builder: (context, structureSnapshot) {
-        if (structureSnapshot.hasError) {
-          return Center(child: Text('Error: ${structureSnapshot.error}'));
-        }
+        if (structureSnapshot.hasError) return Center(child: Text('Error: ${structureSnapshot.error}'));
         if (!structureSnapshot.hasData || structureSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final plotIds = (structureSnapshot.data!.data() as Map<String, dynamic>?)?['plotIds']?.cast<String>() ?? [];
-        if (plotIds.isEmpty) {
-          return const Center(child: Text('No plots available.'));
-        }
+        if (plotIds.isEmpty) return const Center(child: Text('No plots available.'));
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -86,9 +77,7 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
   }
 
   Widget _buildSpecificPlotsView() {
-    if (widget.plotIds.isEmpty) {
-      return const Center(child: Text('No specific plots selected.'));
-    }
+    if (widget.plotIds.isEmpty) return const Center(child: Text('No specific plots selected.'));
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: widget.plotIds.length,
@@ -186,9 +175,7 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('$label: ', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 16, color: Colors.black)),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 16, color: Colors.black))),
         ],
       ),
     );
@@ -283,7 +270,6 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
                     ),
                   )).toList(),
                 ),
-                const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: () => setState(() => microNutrientControllers.add(TextEditingController())),
                   child: const Text('Add Another Micro-Nutrient'),

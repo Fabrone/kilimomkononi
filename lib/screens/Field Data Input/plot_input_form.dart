@@ -1,33 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:kilimomkononi/screens/Field%20Data%20Input/plot_summary_tab.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:kilimomkononi/models/field_data_model.dart';
-import 'package:kilimomkononi/screens/Field%20Data%20Input/plot_summary_tab.dart';
 
-class PlotInputForm extends StatefulWidget {
+abstract class PlotInputForm extends StatefulWidget {
   final String userId;
   final String plotId;
   final String structureType;
   final FlutterLocalNotificationsPlugin notificationsPlugin;
+  final VoidCallback onSave;
 
   const PlotInputForm({
     required this.userId,
     required this.plotId,
     required this.structureType,
     required this.notificationsPlugin,
+    required this.onSave,
+    super.key,
+  });
+}
+
+class MultiplePlotForm extends PlotInputForm {
+  const MultiplePlotForm({
+    required super.userId,
+    required super.plotId,
+    required super.structureType,
+    required super.notificationsPlugin,
+    required super.onSave,
     super.key,
   });
 
   @override
-  State<PlotInputForm> createState() => _PlotInputFormState();
+  State<MultiplePlotForm> createState() => _MultiplePlotFormState();
 }
 
-class _PlotInputFormState extends State<PlotInputForm> {
+class IntercropForm extends PlotInputForm {
+  const IntercropForm({
+    required super.userId,
+    required super.plotId,
+    required super.structureType,
+    required super.notificationsPlugin,
+    required super.onSave,
+    super.key,
+  });
+
+  @override
+  State<IntercropForm> createState() => _IntercropFormState();
+}
+
+class SingleCropForm extends PlotInputForm {
+  const SingleCropForm({
+    required super.userId,
+    required super.plotId,
+    required super.structureType,
+    required super.notificationsPlugin,
+    required super.onSave,
+    super.key,
+  });
+
+  @override
+  State<SingleCropForm> createState() => _SingleCropFormState();
+}
+
+class _PlotInputFormState<T extends PlotInputForm> extends State<T> {
   final _formKey = GlobalKey<FormState>();
   bool _useAcres = true;
-  List<Map<String, String>> _crops = [];
-  List<TextEditingController> _cropControllers = [];
+  List<Map<String, String>> _crops = [{'type': '', 'stage': ''}];
+  List<TextEditingController> _cropControllers = [TextEditingController()];
+  List<TextEditingController> _stageControllers = [TextEditingController()];
   final _areaController = TextEditingController();
   final _nitrogenController = TextEditingController();
   final _phosphorusController = TextEditingController();
@@ -36,163 +78,145 @@ class _PlotInputFormState extends State<PlotInputForm> {
   List<TextEditingController> _microNutrientControllers = [TextEditingController()];
   final List<Map<String, dynamic>> _interventions = [];
   final List<Map<String, dynamic>> _reminders = [];
+  final Map<String, String> _nutrientStatus = {};
+  String _fertilizerRecommendation = '';
 
-  final List<String> _acreFractions = [
+  static const List<String> _acreFractions = [
     '1/8 Acre', '1/6 Acre', '1/4 Acre', '1/3 Acre', '1/2 Acre', '2/3 Acre',
     '3/4 Acre', '1 Acre', '1 1/2 Acres', '2 Acres', '3 Acres', '4 Acres'
   ];
 
-  final Map<String, List<String>> _cropStages = {
-    'Maize': ['Planting (Early Growth)', 'Emergence (Early Growth)', 'Propagation (Early Growth)', 'Tasseling (Mid Growth)', 'Silking (Reproductive)', 'Maturity (Reproductive)'],
-    'Beans': ['Planting (Vegetative)', 'Emergence (Vegetative)', 'Flowering (Reproductive)', 'Pod Development (Reproductive)'],
-    'Tomatoes': ['Planting (Early Growth)', 'Emergence (Early Growth)', 'Flowering (Reproductive)', 'Fruit Set (Reproductive)', 'Maturation (Reproductive)'],
-    'Cassava': ['Planting (Establishment)', 'Emergence (Establishment)', 'Maturity (Maturation)'],
-    'Rice': ['Planting (Early Growth)', 'Tillering (Mid Growth)', 'Panicle Initiation (Mid Growth)', 'Grain Filling (Reproductive)', 'Maturity (Reproductive)'],
-    'Potatoes': ['Planting (Early Growth)', 'Tuber Initiation (Mid Growth)', 'Bulking (Reproductive)', 'Maturation (Reproductive)'],
-    'Wheat': ['Planting (Early Growth)', 'Tillering (Mid Growth)', 'Stem Elongation (Mid Growth)', 'Grain Filling (Reproductive)', 'Maturity (Reproductive)'],
-    'Cabbages/Kales': ['Planting (Early Growth)', 'Leaf Development (Mid Growth)', 'Head Formation (Reproductive)', 'Maturation (Reproductive)'],
-    'Sugarcane': ['Planting (Early Growth)', 'Tillering (Mid Growth)', 'Cane Elongation (Mid Growth)', 'Ripening (Reproductive)'],
-    'Carrots': ['Planting (Early Growth)', 'Emergence (Early Growth)', 'Root Expansion (Mid Growth)', 'Maturation (Reproductive)'],
+  static const List<String> _cropTypes = [
+    'Beans', 'Maize', 'Tomatoes', 'Cabbages/Kales', 'Carrots',
+    'Potatoes', 'Wheat', 'Sugarcane', 'Rice'
+  ];
+
+  static const Map<String, List<String>> _cropStages = {
+    'Beans': ['Vegetative', 'Flowering', 'Pod Development'],
+    'Maize': ['Emergence to V6', 'V6 to VT', 'Reproductive'],
+    'Tomatoes': ['Early Growth', 'Flowering and Fruit Set', 'Fruit Development'],
+    'Cabbages/Kales': ['Early Growth', 'Leaf Development', 'Head Formation'],
+    'Carrots': ['Early Growth', 'Root Expansion', 'Maturation'],
+    'Potatoes': ['Early Growth', 'Tuber Initiation', 'Tuber Bulking'],
+    'Wheat': ['Early Growth', 'Tillering and Stem Elongation', 'Grain Filling'],
+    'Sugarcane': ['Early Growth', 'Grand Growth Phase', 'Maturity'],
+    'Rice': ['Early Growth', 'Tillering to Panicle Initiation', 'Grain Filling'],
   };
 
-  final Map<String, Map<String, Map<String, double>>> _optimalNpk = {
-    'Maize': {
-      'Early Growth': {'N': 45, 'P': 28, 'K': 56},
-      'Mid Growth': {'N': 84, 'P': 28, 'K': 56},
-      'Reproductive': {'N': 0, 'P': 0, 'K': 28},
-    },
+  static const Map<String, Map<String, Map<String, double>>> _optimalNpk = {
     'Beans': {
       'Vegetative': {'N': 28, 'P': 45, 'K': 56},
-      'Reproductive': {'N': 28, 'P': 0, 'K': 56},
+      'Flowering': {'N': 28, 'P': 0, 'K': 56},
+      'Pod Development': {'N': 28, 'P': 0, 'K': 56},
+    },
+    'Maize': {
+      'Emergence to V6': {'N': 45, 'P': 28, 'K': 56},
+      'V6 to VT': {'N': 84, 'P': 28, 'K': 56},
+      'Reproductive': {'N': 0, 'P': 0, 'K': 28},
     },
     'Tomatoes': {
       'Early Growth': {'N': 67, 'P': 78, 'K': 101},
-      'Reproductive': {'N': 0, 'P': 0, 'K': 56},
-    },
-    'Cassava': {
-      'Establishment': {'N': 0, 'P': 28, 'K': 0},
-      'Maturation': {'N': 0, 'P': 0, 'K': 0},
-    },
-    'Rice': {
-      'Early Growth': {'N': 50, 'P': 40, 'K': 50},
-      'Mid Growth': {'N': 0, 'P': 0, 'K': 0},
-      'Reproductive': {'N': 0, 'P': 0, 'K': 40},
-    },
-    'Potatoes': {
-      'Early Growth': {'N': 62, 'P': 75, 'K': 115},
-      'Mid Growth': {'N': 0, 'P': 0, 'K': 0},
-      'Reproductive': {'N': 0, 'P': 0, 'K': 60},
-    },
-    'Wheat': {
-      'Early Growth': {'N': 55, 'P': 55, 'K': 50},
-      'Mid Growth': {'N': 0, 'P': 0, 'K': 0},
-      'Reproductive': {'N': 0, 'P': 0, 'K': 40},
+      'Flowering and Fruit Set': {'N': 0, 'P': 78, 'K': 101},
+      'Fruit Development': {'N': 0, 'P': 0, 'K': 56},
     },
     'Cabbages/Kales': {
       'Early Growth': {'N': 65, 'P': 70, 'K': 90},
-      'Mid Growth': {'N': 0, 'P': 0, 'K': 0},
-      'Reproductive': {'N': 0, 'P': 0, 'K': 50},
-    },
-    'Sugarcane': {
-      'Early Growth': {'N': 90, 'P': 70, 'K': 105},
-      'Mid Growth': {'N': 0, 'P': 0, 'K': 0},
-      'Reproductive': {'N': 0, 'P': 0, 'K': 60},
+      'Leaf Development': {'N': 0, 'P': 70, 'K': 90},
+      'Head Formation': {'N': 0, 'P': 0, 'K': 50},
     },
     'Carrots': {
       'Early Growth': {'N': 50, 'P': 65, 'K': 90},
-      'Mid Growth': {'N': 0, 'P': 0, 'K': 0},
-      'Reproductive': {'N': 0, 'P': 0, 'K': 50},
+      'Root Expansion': {'N': 0, 'P': 65, 'K': 90},
+      'Maturation': {'N': 0, 'P': 0, 'K': 50},
+    },
+    'Potatoes': {
+      'Early Growth': {'N': 62, 'P': 75, 'K': 115},
+      'Tuber Initiation': {'N': 0, 'P': 75, 'K': 115},
+      'Tuber Bulking': {'N': 0, 'P': 0, 'K': 60},
+    },
+    'Wheat': {
+      'Early Growth': {'N': 55, 'P': 55, 'K': 50},
+      'Tillering and Stem Elongation': {'N': 0, 'P': 55, 'K': 50},
+      'Grain Filling': {'N': 0, 'P': 0, 'K': 40},
+    },
+    'Sugarcane': {
+      'Early Growth': {'N': 90, 'P': 70, 'K': 105},
+      'Grand Growth Phase': {'N': 0, 'P': 70, 'K': 105},
+      'Maturity': {'N': 0, 'P': 0, 'K': 60},
+    },
+    'Rice': {
+      'Early Growth': {'N': 50, 'P': 40, 'K': 50},
+      'Tillering to Panicle Initiation': {'N': 0, 'P': 40, 'K': 50},
+      'Grain Filling': {'N': 0, 'P': 0, 'K': 40},
     },
   };
 
-  final Map<String, Map<String, String>> _fertilizerRecommendations = {
-    'Maize': {
-      'Early Growth': 'Urea (46-0-0) or Ammonium Nitrate (34-0-0)',
-      'Mid Growth': 'NPK 20-20-20 or 10-20-20',
-      'Reproductive': 'Muriate of Potash (0-0-60)',
-    },
+  static const Map<String, Map<String, String>> _fertilizerRecommendations = {
     'Beans': {
       'Vegetative': 'Triple Superphosphate (0-46-0) or DAP (18-46-0)',
-      'Reproductive': 'Muriate of Potash (0-0-60), Urea (46-0-0)',
+      'Flowering': 'Muriate of Potash (0-0-60), Urea (46-0-0)',
+      'Pod Development': 'Muriate of Potash (0-0-60), Urea (46-0-0)',
+    },
+    'Maize': {
+      'Emergence to V6': 'Urea (46-0-0) or Ammonium Nitrate (34-0-0)',
+      'V6 to VT': 'NPK 20-20-20 or 10-20-20',
+      'Reproductive': 'Muriate of Potash (0-0-60)',
     },
     'Tomatoes': {
       'Early Growth': 'Urea (46-0-0) or Ammonium Sulfate (21-0-0)',
-      'Reproductive': 'NPK 10-20-20 or 12-24-12, Muriate of Potash (0-0-60)',
-    },
-    'Cassava': {
-      'Establishment': 'Triple Superphosphate (0-46-0)',
-      'Maturation': '',
-    },
-    'Rice': {
-      'Early Growth': 'Urea (46-0-0) or Ammonium Sulfate (21-0-0)',
-      'Mid Growth': 'NPK 16-20-0 or 10-26-26',
-      'Reproductive': 'Muriate of Potash (0-0-60)',
-    },
-    'Potatoes': {
-      'Early Growth': 'Urea (46-0-0) or Ammonium Nitrate (34-0-0)',
-      'Mid Growth': 'NPK 10-20-20 or 14-28-14',
-      'Reproductive': 'Muriate of Potash (0-0-60)',
-    },
-    'Wheat': {
-      'Early Growth': 'Urea (46-0-0) or Ammonium Sulfate (21-0-0)',
-      'Mid Growth': 'NPK 18-46-0 (DAP) or 12-24-12',
-      'Reproductive': 'Muriate of Potash (0-0-60)',
+      'Flowering and Fruit Set': 'NPK 10-20-20 or 12-24-12',
+      'Fruit Development': 'Muriate of Potash (0-0-60)',
     },
     'Cabbages/Kales': {
       'Early Growth': 'Urea (46-0-0) or Ammonium Sulfate (21-0-0)',
-      'Mid Growth': 'NPK 10-20-20 or 14-28-14',
-      'Reproductive': 'Muriate of Potash (0-0-60)',
-    },
-    'Sugarcane': {
-      'Early Growth': 'Urea (46-0-0) or Ammonium Sulfate (21-0-0)',
-      'Mid Growth': 'NPK 14-28-14 or 12-24-12',
-      'Reproductive': 'Muriate of Potash (0-0-60)',
+      'Leaf Development': 'NPK 10-20-20 or 14-28-14',
+      'Head Formation': 'Muriate of Potash (0-0-60)',
     },
     'Carrots': {
       'Early Growth': 'Ammonium Nitrate (34-0-0) or Ammonium Sulfate (21-0-0)',
-      'Mid Growth': 'NPK 10-20-20 or 14-28-14',
-      'Reproductive': 'Muriate of Potash (0-0-60)',
+      'Root Expansion': 'NPK 10-20-20 or 14-28-14',
+      'Maturation': 'Muriate of Potash (0-0-60)',
+    },
+    'Potatoes': {
+      'Early Growth': 'Urea (46-0-0) or Ammonium Nitrate (34-0-0)',
+      'Tuber Initiation': 'NPK 10-20-20 or 14-28-14',
+      'Tuber Bulking': 'Muriate of Potash (0-0-60)',
+    },
+    'Wheat': {
+      'Early Growth': 'Urea (46-0-0) or Ammonium Sulfate (21-0-0)',
+      'Tillering and Stem Elongation': 'NPK 18-46-0 (DAP) or 12-24-12',
+      'Grain Filling': 'Muriate of Potash (0-0-60)',
+    },
+    'Sugarcane': {
+      'Early Growth': 'Urea (46-0-0) or Ammonium Sulfate (21-0-0)',
+      'Grand Growth Phase': 'NPK 14-28-14 or 12-24-12',
+      'Maturity': 'Muriate of Potash (0-0-60)',
+    },
+    'Rice': {
+      'Early Growth': 'Urea (46-0-0) or Ammonium Sulfate (21-0-0)',
+      'Tillering to Panicle Initiation': 'NPK 16-20-0 or 10-26-26',
+      'Grain Filling': 'Muriate of Potash (0-0-60)',
     },
   };
-
-  final Map<String, String> _nutrientStatus = {};
 
   @override
   void initState() {
     super.initState();
-    _initializeCropFields();
-  }
-
-  void _initializeCropFields() {
-    if (widget.structureType == 'intercrop' && _crops.isEmpty) {
-      setState(() {
-        _crops = [
-          {'type': '', 'stage': ''},
-          {'type': '', 'stage': ''},
-        ];
-        _cropControllers = [
-          TextEditingController(),
-          TextEditingController(),
-        ];
-      });
-    } else if (_crops.isEmpty) {
-      setState(() {
-        _crops = [{'type': '', 'stage': ''}];
-        _cropControllers = [TextEditingController()];
-      });
+    if (widget.structureType == 'intercrop') {
+      _crops = [{'type': '', 'stage': ''}, {'type': '', 'stage': ''}];
+      _cropControllers = [TextEditingController(), TextEditingController()];
+      _stageControllers = [TextEditingController(), TextEditingController()];
     }
   }
 
   Future<void> _saveForm() async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       _microNutrients = _microNutrientControllers.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
 
-      for (int i = 0; i < _cropControllers.length; i++) {
-        if (_cropControllers[i].text.isNotEmpty) {
-          _crops[i]['type'] = _cropControllers[i].text;
-        }
+      for (int i = 0; i < _crops.length; i++) {
+        _crops[i]['type'] = _cropControllers[i].text;
+        _crops[i]['stage'] = _stageControllers[i].text;
       }
       _crops = _crops.where((crop) => crop['type']!.isNotEmpty).toList();
 
@@ -210,23 +234,24 @@ class _PlotInputFormState extends State<PlotInputForm> {
         }
       }
 
+      final fieldData = FieldData(
+        userId: widget.userId,
+        plotId: widget.plotId,
+        crops: _crops,
+        area: areaInAcres,
+        npk: {
+          'N': _nitrogenController.text.isNotEmpty ? double.parse(_nitrogenController.text) : null,
+          'P': _phosphorusController.text.isNotEmpty ? double.parse(_phosphorusController.text) : null,
+          'K': _potassiumController.text.isNotEmpty ? double.parse(_potassiumController.text) : null,
+        },
+        microNutrients: _microNutrients,
+        interventions: _interventions,
+        reminders: _reminders,
+        timestamp: Timestamp.now(),
+        structureType: widget.structureType,
+      );
+
       try {
-        final fieldData = FieldData(
-          userId: widget.userId,
-          plotId: widget.plotId,
-          crops: _crops,
-          area: areaInAcres,
-          npk: {
-            'N': _nitrogenController.text.isNotEmpty ? double.parse(_nitrogenController.text) : null,
-            'P': _phosphorusController.text.isNotEmpty ? double.parse(_phosphorusController.text) : null,
-            'K': _potassiumController.text.isNotEmpty ? double.parse(_potassiumController.text) : null,
-          },
-          microNutrients: _microNutrients,
-          interventions: _interventions,
-          reminders: _reminders,
-          timestamp: Timestamp.now(),
-          structureType: widget.structureType,
-        );
         await FirebaseFirestore.instance
             .collection('fielddata')
             .doc(widget.userId)
@@ -234,13 +259,14 @@ class _PlotInputFormState extends State<PlotInputForm> {
             .doc(widget.plotId)
             .collection('entries')
             .add(fieldData.toMap());
+        widget.onSave(); // Save structure to Firestore when data is added
         if (mounted) {
-          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('New data saved successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data saved successfully')));
           _resetForm();
         }
       } catch (e) {
         if (mounted) {
-          scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error saving data: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error saving data: $e')));
         }
       }
     }
@@ -257,7 +283,16 @@ class _PlotInputFormState extends State<PlotInputForm> {
       _interventions.clear();
       _reminders.clear();
       _nutrientStatus.clear();
-      _initializeCropFields();
+      _fertilizerRecommendation = '';
+      if (widget.structureType == 'intercrop') {
+        _crops = [{'type': '', 'stage': ''}, {'type': '', 'stage': ''}];
+        _cropControllers = [TextEditingController(), TextEditingController()];
+        _stageControllers = [TextEditingController(), TextEditingController()];
+      } else {
+        _crops = [{'type': '', 'stage': ''}];
+        _cropControllers = [TextEditingController()];
+        _stageControllers = [TextEditingController()];
+      }
     });
   }
 
@@ -275,7 +310,6 @@ class _PlotInputFormState extends State<PlotInputForm> {
   }
 
   Future<void> _scheduleReminder(DateTime date, String activity) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     const androidDetails = AndroidNotificationDetails(
       'field_data_channel',
       'Field Data Reminders',
@@ -307,29 +341,29 @@ class _PlotInputFormState extends State<PlotInputForm> {
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
       if (mounted) {
-        scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Reminders scheduled successfully')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reminders scheduled successfully')));
       }
     } catch (e) {
       if (mounted) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error scheduling reminder: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error scheduling reminder: $e')));
       }
     }
   }
 
-  void _compareNutrients(String crop, String stage) {
-    final growthStage = stage.split('(')[1].replaceAll(')', '');
-    final optimal = _optimalNpk[crop]?[growthStage];
-    if (optimal == null) return;
+  void _updateNutrientStatus(String crop, String stage) {
+    final optimal = _optimalNpk[crop]?[stage] ?? {'N': 0.0, 'P': 0.0, 'K': 0.0};
+    final fertilizer = _fertilizerRecommendations[crop]?[stage] ?? '';
 
     setState(() {
       _nutrientStatus.clear();
+      _fertilizerRecommendation = fertilizer;
       final n = _nitrogenController.text.isNotEmpty ? double.parse(_nitrogenController.text) : 0;
       final p = _phosphorusController.text.isNotEmpty ? double.parse(_phosphorusController.text) : 0;
       final k = _potassiumController.text.isNotEmpty ? double.parse(_potassiumController.text) : 0;
 
-      _nutrientStatus['N'] = n < optimal['N']! ? 'Lower' : n > optimal['N']! ? 'Higher' : 'Optimal';
-      _nutrientStatus['P'] = p < optimal['P']! ? 'Lower' : p > optimal['P']! ? 'Higher' : 'Optimal';
-      _nutrientStatus['K'] = k < optimal['K']! ? 'Lower' : k > optimal['K']! ? 'Higher' : 'Optimal';
+      _nutrientStatus['N'] = n < optimal['N']! ? 'Low' : n > optimal['N']! ? 'High' : 'Optimal';
+      _nutrientStatus['P'] = p < optimal['P']! ? 'Low' : p > optimal['P']! ? 'High' : 'Optimal';
+      _nutrientStatus['K'] = k < optimal['K']! ? 'Low' : k > optimal['K']! ? 'High' : 'Optimal';
     });
   }
 
@@ -344,20 +378,25 @@ class _PlotInputFormState extends State<PlotInputForm> {
           children: [
             const Text('Add Crop', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            ..._cropControllers.asMap().entries.map((entry) {
-              int idx = entry.key;
-              TextEditingController controller = entry.value;
+            ..._crops.asMap().entries.map((entry) {
+              final idx = entry.key;
               return Column(
                 children: [
-                  TextFormField(
-                    controller: controller,
-                    decoration: _inputDecoration('Crop Type'),
-                    validator: (value) => widget.structureType == 'intercrop' && idx < 2 && (value == null || value.isEmpty) ? 'Required for Intercrop' : null,
-                    onChanged: (value) {
-                      if (idx < _crops.length) {
-                        _crops[idx]['type'] = value;
-                      }
-                    },
+                  Row(
+                    children: [
+                      Expanded(child: _buildCropTypeField(idx)),
+                      if (widget.structureType == 'intercrop' && idx >= 2)
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.red),
+                          onPressed: () {
+                            setState(() {
+                              _crops.removeAt(idx);
+                              _cropControllers.removeAt(idx);
+                              _stageControllers.removeAt(idx);
+                            });
+                          },
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   _buildCropStageField(idx),
@@ -371,6 +410,7 @@ class _PlotInputFormState extends State<PlotInputForm> {
                   setState(() {
                     _crops.add({'type': '', 'stage': ''});
                     _cropControllers.add(TextEditingController());
+                    _stageControllers.add(TextEditingController());
                   });
                 },
                 style: ElevatedButton.styleFrom(
@@ -378,6 +418,11 @@ class _PlotInputFormState extends State<PlotInputForm> {
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('+ Additional Crop'),
+              ),
+            if (widget.structureType == 'single' && _crops.length > 1)
+              const Text(
+                'Note: Single Crop structure allows only one crop.',
+                style: TextStyle(color: Colors.red),
               ),
             const SizedBox(height: 16),
 
@@ -389,9 +434,7 @@ class _PlotInputFormState extends State<PlotInputForm> {
                       if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
                       return _acreFractions.where((option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
                     },
-                    onSelected: (String selection) {
-                      _areaController.text = selection;
-                    },
+                    onSelected: (String selection) => _areaController.text = selection,
                     fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                       _areaController.text = controller.text;
                       return TextFormField(
@@ -422,34 +465,41 @@ class _PlotInputFormState extends State<PlotInputForm> {
             ..._buildNutrientFields(),
             const SizedBox(height: 16),
 
+            const Text('Nutrient Analysis & Recommendations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if (_nutrientStatus.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('N Status: ${_nutrientStatus['N']}', style: TextStyle(color: _nutrientStatus['N'] == 'Low' ? Colors.red : _nutrientStatus['N'] == 'High' ? Colors.orange : Colors.green)),
+                  Text('P Status: ${_nutrientStatus['P']}', style: TextStyle(color: _nutrientStatus['P'] == 'Low' ? Colors.red : _nutrientStatus['P'] == 'High' ? Colors.orange : Colors.green)),
+                  Text('K Status: ${_nutrientStatus['K']}', style: TextStyle(color: _nutrientStatus['K'] == 'Low' ? Colors.red : _nutrientStatus['K'] == 'High' ? Colors.orange : Colors.green)),
+                  if (_fertilizerRecommendation.isNotEmpty) Text('Recommended Fertilizer: $_fertilizerRecommendation', style: const TextStyle(color: Colors.blue)),
+                ],
+              ),
+            const SizedBox(height: 16),
+
             const Text('Micro-Nutrients', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Column(
-              children: [
-                ..._microNutrientControllers.map((controller) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: TextFormField(
-                    controller: controller,
-                    decoration: _inputDecoration('Micro-Nutrient'),
-                    onFieldSubmitted: (value) {
-                      if (value.isNotEmpty && !_microNutrients.contains(value)) {
-                        setState(() => _microNutrients.add(value));
-                      }
-                    },
-                  ),
-                )),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() => _microNutrientControllers.add(TextEditingController()));
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 3, 39, 4),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Add Another Micro-Nutrient'),
-                ),
-              ],
+            ..._microNutrientControllers.map((controller) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: TextFormField(
+                controller: controller,
+                decoration: _inputDecoration('Micro-Nutrient'),
+                onFieldSubmitted: (value) {
+                  if (value.isNotEmpty && !_microNutrients.contains(value)) {
+                    setState(() => _microNutrients.add(value));
+                  }
+                },
+              ),
+            )),
+            ElevatedButton(
+              onPressed: () => setState(() => _microNutrientControllers.add(TextEditingController())),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 3, 39, 4),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Add Another Micro-Nutrient'),
             ),
             Wrap(
               spacing: 8,
@@ -473,7 +523,6 @@ class _PlotInputFormState extends State<PlotInputForm> {
               ),
               child: const Text('Add Intervention'),
             ),
-            const SizedBox(height: 8),
             ..._interventions.map((i) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: ListTile(
@@ -499,7 +548,6 @@ class _PlotInputFormState extends State<PlotInputForm> {
               ),
               child: const Text('Add Reminder'),
             ),
-            const SizedBox(height: 8),
             ..._reminders.map((r) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: ListTile(
@@ -543,157 +591,120 @@ class _PlotInputFormState extends State<PlotInputForm> {
     );
   }
 
-  List<Widget> _buildNutrientFields() {
-    final crop = _crops.isNotEmpty && _crops[0]['type']!.isNotEmpty ? _crops[0]['type'] : '';
-    final stage = _crops.isNotEmpty && _crops[0]['stage']!.isNotEmpty ? _crops[0]['stage'] : '';
-    final growthStage = stage!.isNotEmpty ? stage.split('(')[1].replaceAll(')', '') : '';
-    final optimal = _optimalNpk[crop]?[growthStage] ?? {'N': 0.0, 'P': 0.0, 'K': 0.0};
-    final fertilizer = _fertilizerRecommendations[crop]?[growthStage] ?? '';
-
-    return [
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: TextFormField(
-                controller: _nitrogenController,
-                decoration: _inputDecoration('Nitrogen (N)'),
-                keyboardType: TextInputType.number,
-                validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
-                onChanged: (_) => _compareNutrients(crop!, stage),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 2,
-              child: Text(
-                'Optimal: ${optimal['N']}',
-                style: const TextStyle(fontSize: 14, color: Colors.black54),
-              ),
-            ),
-          ],
-        ),
-      ),
-      if (_nutrientStatus['N'] != null)
-        Text(
-          'N Status: ${_nutrientStatus['N']}',
-          style: TextStyle(
-            color: _nutrientStatus['N'] == 'Lower' ? Colors.red : _nutrientStatus['N'] == 'Higher' ? Colors.orange : Colors.green,
-          ),
-        ),
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: TextFormField(
-                controller: _phosphorusController,
-                decoration: _inputDecoration('Phosphorus (P)'),
-                keyboardType: TextInputType.number,
-                validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
-                onChanged: (_) => _compareNutrients(crop!, stage),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 2,
-              child: Text(
-                'Optimal: ${optimal['P']}',
-                style: const TextStyle(fontSize: 14, color: Colors.black54),
-              ),
-            ),
-          ],
-        ),
-      ),
-      if (_nutrientStatus['P'] != null)
-        Text(
-          'P Status: ${_nutrientStatus['P']}',
-          style: TextStyle(
-            color: _nutrientStatus['P'] == 'Lower' ? Colors.red : _nutrientStatus['P'] == 'Higher' ? Colors.orange : Colors.green,
-          ),
-        ),
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: TextFormField(
-                controller: _potassiumController,
-                decoration: _inputDecoration('Potassium (K)'),
-                keyboardType: TextInputType.number,
-                validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
-                onChanged: (_) => _compareNutrients(crop!, stage),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 2,
-              child: Text(
-                'Optimal: ${optimal['K']}',
-                style: const TextStyle(fontSize: 14, color: Colors.black54),
-              ),
-            ),
-          ],
-        ),
-      ),
-      if (_nutrientStatus['K'] != null)
-        Text(
-          'K Status: ${_nutrientStatus['K']}',
-          style: TextStyle(
-            color: _nutrientStatus['K'] == 'Lower' ? Colors.red : _nutrientStatus['K'] == 'Higher' ? Colors.orange : Colors.green,
-          ),
-        ),
-      if (fertilizer.isNotEmpty)
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(
-            'Recommended Fertilizer: $fertilizer',
-            style: const TextStyle(fontSize: 14, color: Colors.blue),
-          ),
-        ),
-    ];
-  }
-
-  Widget _buildCropStageField(int index) {
-    final crop = _crops[index]['type'];
-    final stages = _cropStages[crop] ?? ['Planting', 'Emergence', 'Propagation'];
-
-    return Autocomplete<String>(
-      optionsBuilder: (TextEditingValue textEditingValue) {
-        if (textEditingValue.text.isEmpty) {
-          return stages;
-        }
-        return stages.where((stage) => stage.toLowerCase().contains(textEditingValue.text.toLowerCase()));
-      },
-      onSelected: (String selection) {
+  Widget _buildCropTypeField(int index) {
+    return DropdownButtonFormField<String>(
+      value: _cropControllers[index].text.isEmpty ? null : _cropControllers[index].text,
+      decoration: _inputDecoration('Crop Type'),
+      items: _cropTypes.map((crop) => DropdownMenuItem(value: crop, child: Text(crop))).toList(),
+      onChanged: (value) {
         setState(() {
-          if (index < _crops.length) {
-            _crops[index]['stage'] = selection;
-            _compareNutrients(crop!, selection);
+          _cropControllers[index].text = value ?? '';
+          _crops[index]['type'] = value ?? '';
+          _stageControllers[index].clear();
+          _crops[index]['stage'] = '';
+          if (_cropTypes.contains(value) && _cropStages[value]!.contains(_crops[index]['stage'])) {
+            _updateNutrientStatus(value!, _crops[index]['stage']!);
+          } else {
+            _nutrientStatus.clear();
+            _fertilizerRecommendation = '';
           }
         });
       },
-      fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-        return TextFormField(
-          controller: textEditingController,
-          focusNode: focusNode,
-          decoration: _inputDecoration('Crop Stage'),
-          onFieldSubmitted: (value) {
-            if (value.isNotEmpty && index < _crops.length) {
-              setState(() {
-                _crops[index]['stage'] = value;
-                _compareNutrients(crop!, value);
-              });
-            }
-            onFieldSubmitted();
-          },
-        );
-      },
+      isExpanded: true,
+      validator: (value) => widget.structureType == 'intercrop' && index < 2 && (value == null || value.isEmpty) ? 'Required for Intercrop' : null,
     );
+  }
+
+  Widget _buildCropStageField(int index) {
+    final crop = _crops[index]['type']!;
+    final stages = _cropStages[crop] ?? ['Custom'];
+
+    return DropdownButtonFormField<String>(
+      value: _stageControllers[index].text.isEmpty ? null : _stageControllers[index].text,
+      decoration: _inputDecoration('Crop Stage'),
+      items: stages.map((stage) => DropdownMenuItem(value: stage, child: Text(stage))).toList(),
+      onChanged: (value) {
+        setState(() {
+          _stageControllers[index].text = value ?? '';
+          _crops[index]['stage'] = value ?? '';
+          if (_cropTypes.contains(crop) && stages.contains(value)) {
+            _updateNutrientStatus(crop, value!);
+          } else {
+            _nutrientStatus.clear();
+            _fertilizerRecommendation = '';
+          }
+        });
+      },
+      isExpanded: true,
+    );
+  }
+
+  List<Widget> _buildNutrientFields() {
+    final crop = _crops.isNotEmpty && _crops[0]['type']!.isNotEmpty ? _crops[0]['type'] : '';
+    final stage = _crops.isNotEmpty && _crops[0]['stage']!.isNotEmpty ? _crops[0]['stage'] : '';
+    final optimal = _optimalNpk[crop]?[stage] ?? {'N': 0.0, 'P': 0.0, 'K': 0.0};
+
+    return [
+      Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              controller: _nitrogenController,
+              decoration: _inputDecoration('Nitrogen (N)'),
+              keyboardType: TextInputType.number,
+              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
+              onChanged: (_) => _updateNutrientStatus(crop!, stage!),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            flex: 2,
+            child: Text('Optimal: ${optimal['N']}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              controller: _phosphorusController,
+              decoration: _inputDecoration('Phosphorus (P)'),
+              keyboardType: TextInputType.number,
+              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
+              onChanged: (_) => _updateNutrientStatus(crop!, stage!),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            flex: 2,
+            child: Text('Optimal: ${optimal['P']}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              controller: _potassiumController,
+              decoration: _inputDecoration('Potassium (K)'),
+              keyboardType: TextInputType.number,
+              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Enter a valid number' : null,
+              onChanged: (_) => _updateNutrientStatus(crop!, stage!),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            flex: 2,
+            child: Text('Optimal: ${optimal['K']}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+          ),
+        ],
+      ),
+    ];
   }
 
   InputDecoration _inputDecoration(String label) => InputDecoration(
@@ -826,5 +837,19 @@ class _PlotInputFormState extends State<PlotInputForm> {
         ],
       ),
     );
+  }
+}
+
+class _MultiplePlotFormState extends _PlotInputFormState<MultiplePlotForm> {}
+
+class _IntercropFormState extends _PlotInputFormState<IntercropForm> {}
+
+class _SingleCropFormState extends _PlotInputFormState<SingleCropForm> {
+  @override
+  void initState() {
+    super.initState();
+    _crops = [{'type': '', 'stage': ''}];
+    _cropControllers = [TextEditingController()];
+    _stageControllers = [TextEditingController()];
   }
 }

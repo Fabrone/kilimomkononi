@@ -156,7 +156,7 @@ class _PestManagementPageState extends State<PestManagementPage> {
       'herbicidesPesticides': ['Azadirachtin (Neem Oil)', 'Admire (Imidacloprid)'],
     },
     'Leafhoppers (Flowering/Reproductive)': {
-      'imagePath': 'assets/pests/beans_leafhoppers_flowering.jpg',
+      'imagePath': 'assets/pests/beans_leaf_hoppers_flowering.jpg',
       'possibleStrategies': ['Use reflective mulches', 'Control weeds', 'Apply sticky traps'],
       'intervention': 'Insecticide (Imidacloprid)',
       'possibleCauses': ['Warm weather', 'Flowering plants'],
@@ -170,7 +170,7 @@ class _PestManagementPageState extends State<PestManagementPage> {
       'herbicidesPesticides': ['Entrust (Spinosad)', 'Radiant (Spinosad)'],
     },
     'Pod Borers': {
-      'imagePath': 'assets/pests/beans_pod_borers_flowering.jpg',
+      'imagePath': 'assets/pests/beans_pod_borer_flowering.jpg',
       'possibleStrategies': ['Remove infested pods', 'Use pheromone traps', 'Early flowering management'],
       'intervention': 'Insecticide (Spinosad)',
       'possibleCauses': ['Warm weather', 'Flowering to podding stage'],

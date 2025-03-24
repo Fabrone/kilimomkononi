@@ -11,7 +11,7 @@ class FieldData {
   final List<Map<String, dynamic>> interventions;
   final List<Map<String, dynamic>> reminders;
   final Timestamp timestamp;
-  final String structureType; 
+  final String structureType;
 
   FieldData({
     required this.userId,
