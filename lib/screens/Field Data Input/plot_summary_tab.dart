@@ -33,20 +33,37 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.connectionState == ConnectionState.waiting) {
+          // Loading state
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
+          // Error state
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text(
+                'Unable to load saved data. Please try again later.',
+                style: TextStyle(fontSize: 16, color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+
+          // No data state
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                'No saved data available. Please save data to view your history.',
+                style: TextStyle(fontSize: 16, color: Colors.black54),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+
+          // Data available state
           final entries = snapshot.data!.docs
               .map((doc) => FieldData.fromMap(doc.data() as Map<String, dynamic>))
               .toList();
-
-          if (entries.isEmpty) {
-            return const Center(child: Text('No data available.'));
-          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -94,26 +111,33 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
                     ),
                   ],
                 ),
-                _buildFieldRow('Crops', entry.crops.isNotEmpty
-                    ? entry.crops.map((c) => '${c['type']} (${c['stage']})').join(', ')
-                    : 'None'),
+                _buildFieldRow('Structure Type', entry.structureType),
+                _buildFieldRow(
+                    'Crops',
+                    entry.crops.isNotEmpty
+                        ? entry.crops.map((c) => '${c['type']} (${c['stage']})').join(', ')
+                        : 'None'),
                 _buildFieldRow('Area', entry.area != null ? '${entry.area} Acres' : 'None'),
                 _buildFieldRow('Nitrogen (N)', entry.npk['N'] != null ? '${entry.npk['N']}' : 'None'),
                 _buildFieldRow('Phosphorus (P)', entry.npk['P'] != null ? '${entry.npk['P']}' : 'None'),
                 _buildFieldRow('Potassium (K)', entry.npk['K'] != null ? '${entry.npk['K']}' : 'None'),
                 _buildFieldRow('Micro-Nutrients',
                     entry.microNutrients.isNotEmpty ? entry.microNutrients.join(', ') : 'None'),
-                _buildFieldRow('Interventions', entry.interventions.isNotEmpty
-                    ? entry.interventions
-                        .map((i) => '${i['type']} (${i['quantity']} ${i['unit']})')
-                        .join(', ')
-                    : 'None'),
-                _buildFieldRow('Reminders', entry.reminders.isNotEmpty
-                    ? entry.reminders
-                        .map((r) =>
-                            '${r['activity']} (${r['date'].toDate().toString().substring(0, 10)})')
-                        .join(', ')
-                    : 'None'),
+                _buildFieldRow(
+                    'Interventions',
+                    entry.interventions.isNotEmpty
+                        ? entry.interventions
+                            .map((i) => '${i['type']} (${i['quantity']} ${i['unit']})')
+                            .join(', ')
+                        : 'None'),
+                _buildFieldRow(
+                    'Reminders',
+                    entry.reminders.isNotEmpty
+                        ? entry.reminders
+                            .map((r) =>
+                                '${r['activity']} (${r['date'].toDate().toString().substring(0, 10)})')
+                            .join(', ')
+                        : 'None'),
                 _buildFieldRow('Fertilizer Recommendation',
                     entry.fertilizerRecommendation ?? 'None'),
               ],
@@ -226,7 +250,7 @@ class _PlotSummaryTabState extends State<PlotSummaryTab> {
                 const SizedBox(height: 8),
                 Column(
                   children: microNutrientControllers.map((controller) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     child: TextField(
                       controller: controller,
                       decoration: const InputDecoration(labelText: 'Micro-Nutrient'),
