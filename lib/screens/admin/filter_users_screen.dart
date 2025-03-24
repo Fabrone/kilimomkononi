@@ -23,7 +23,7 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(userData['fullName'] ?? 'User Details'),
+        title: Text(userData['fullName'] ?? 'User Details', style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,10 +31,11 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
             children: [
               Text('Full Name: ${userData['fullName'] ?? 'N/A'}'),
               Text('Email: ${userData['email'] ?? 'N/A'}'),
-              Text('County: ${userData['County'] ?? 'N/A'}'),
-              Text('Constituency: ${userData['Constituency'] ?? 'N/A'}'),
-              Text('Ward: ${userData['Ward'] ?? 'N/A'}'),
+              Text('County: ${userData['county'] ?? 'N/A'}'),
+              Text('Constituency: ${userData['constituency'] ?? 'N/A'}'),
+              Text('Ward: ${userData['ward'] ?? 'N/A'}'),
               Text('Phone Number: ${userData['phoneNumber'] ?? 'N/A'}'),
+              Text('Status: ${userData['isDisabled'] == true ? 'Disabled' : 'Active'}'),
             ],
           ),
         ),
@@ -104,9 +105,9 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                 value: _sortField,
                 items: const [
                   DropdownMenuItem(value: 'fullName', child: Text('Full Name')),
-                  DropdownMenuItem(value: 'County', child: Text('County')),
-                  DropdownMenuItem(value: 'Constituency', child: Text('Constituency')),
-                  DropdownMenuItem(value: 'Ward', child: Text('Ward')),
+                  DropdownMenuItem(value: 'county', child: Text('County')),
+                  DropdownMenuItem(value: 'constituency', child: Text('Constituency')),
+                  DropdownMenuItem(value: 'ward', child: Text('Ward')),
                 ],
                 onChanged: (value) => setState(() => _sortField = value!),
                 style: const TextStyle(color: Colors.black),
@@ -133,9 +134,9 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
   List<Map<String, dynamic>> _filterUsers(List<QueryDocumentSnapshot> docs) {
     final searchText = _searchController.text.toLowerCase();
     return docs.map((doc) => doc.data() as Map<String, dynamic>).where((user) {
-      final county = user['County']?.toString().toLowerCase() ?? '';
-      final constituency = user['Constituency']?.toString().toLowerCase() ?? '';
-      final ward = user['Ward']?.toString().toLowerCase() ?? '';
+      final county = user['county']?.toString().toLowerCase() ?? '';
+      final constituency = user['constituency']?.toString().toLowerCase() ?? '';
+      final ward = user['ward']?.toString().toLowerCase() ?? '';
       final fullName = user['fullName']?.toString().toLowerCase() ?? '';
       return county.contains(searchText) ||
           constituency.contains(searchText) ||
@@ -210,11 +211,11 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
               Expanded(
                 flex: 1,
                 child: Text(
-                  _sortField == 'County'
-                      ? user['County'] ?? 'N/A'
-                      : _sortField == 'Constituency'
-                          ? user['Constituency'] ?? 'N/A'
-                          : user['Ward'] ?? 'N/A',
+                  _sortField == 'county'
+                      ? user['county'] ?? 'N/A'
+                      : _sortField == 'constituency'
+                          ? user['constituency'] ?? 'N/A'
+                          : user['ward'] ?? 'N/A',
                   style: const TextStyle(color: Colors.grey),
                 ),
               ),

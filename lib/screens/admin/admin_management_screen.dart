@@ -1,11 +1,13 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kilimomkononi/screens/admin/filter_users_screen.dart';
 import 'package:logger/logger.dart';
 import 'package:kilimomkononi/screens/collection_management_screen.dart';
 import 'package:kilimomkononi/screens/pest%20management/admin_pest_management_page.dart';
-import 'package:kilimomkononi/screens/admin/filter_users_screen.dart'; 
 
 class AdminManagementScreen extends StatefulWidget {
   const AdminManagementScreen({super.key});
@@ -111,7 +113,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Dashboard', style: TextStyle(color: Colors.white)),
+        title: const Text('Admin Dashboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color.fromARGB(255, 3, 39, 4),
         foregroundColor: Colors.white,
       ),
@@ -154,7 +156,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                       }
                       final count = snapshot.data?.docs.length ?? 0;
                       return ListTile(
-                        title: Text(collection, style: const TextStyle(fontSize: 16)),
+                        title: Text(collection, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         trailing: Text('$count', style: const TextStyle(fontSize: 16, color: Color.fromARGB(255, 3, 39, 4))),
                         onTap: () => Navigator.push(
                           context,
@@ -217,7 +219,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Assign ${collection.replaceAll('s', '')} Role'),
+        title: Text('Assign ${collection.replaceAll('s', '')} Role', style: const TextStyle(fontWeight: FontWeight.bold)),
         content: Row(
           children: [
             Expanded(
@@ -273,7 +275,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select User'),
+        title: const Text('Select User', style: TextStyle(fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: double.maxFinite,
           height: 300,
@@ -328,7 +330,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
         builder: (context) => StatefulBuilder(
           builder: (context, setState) => Scaffold(
             appBar: AppBar(
-              title: const Text('Manage Users', style: TextStyle(color: Colors.white)),
+              title: const Text('Manage Users', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               backgroundColor: const Color.fromARGB(255, 3, 39, 4),
               foregroundColor: Colors.white,
               actions: [
@@ -349,6 +351,19 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
             ),
             body: Column(
               children: [
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('Users').snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        'Total Users: ${snapshot.data!.docs.length}',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  },
+                ),
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance.collection('Users').snapshots(),
@@ -369,51 +384,47 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                         child: SingleChildScrollView(
                           scrollDirection: Axis.vertical,
                           child: DataTable(
-                            columns: [
-                              if (bulkAction != null) const DataColumn(label: Text('Select')),
-                              const DataColumn(label: Text('Full Name')),
-                              const DataColumn(label: Text('Email')),
-                              const DataColumn(label: Text('County')),
-                              const DataColumn(label: Text('Constituency')),
-                              const DataColumn(label: Text('Ward')),
-                              const DataColumn(label: Text('Phone Number')),
-                              const DataColumn(label: Text('Actions')),
+                            columns: const [
+                              DataColumn(label: Text('Profile', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Full Name', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('County', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Constituency', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Ward', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Phone Number', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
                             ],
                             rows: users.map((doc) {
                               final data = doc.data() as Map<String, dynamic>;
                               final uid = doc.id;
-                              final isAdmin = FirebaseAuth.instance.currentUser?.uid == uid;
                               return DataRow(cells: [
-                                if (bulkAction != null)
-                                  DataCell(
-                                    Checkbox(
-                                      value: selectedUids.contains(uid),
-                                      onChanged: isAdmin
-                                          ? null
-                                          : (value) {
-                                              setState(() {
-                                                if (value == true) {
-                                                  selectedUids.add(uid);
-                                                } else {
-                                                  selectedUids.remove(uid);
-                                                }
-                                              });
-                                            },
-                                    ),
-                                  ),
+                                DataCell(
+                                  data['profileImage'] != null
+                                      ? Image.memory(
+                                          base64Decode(data['profileImage']),
+                                          width: 28,
+                                          height: 28,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : const Icon(Icons.person, size: 28),
+                                ),
                                 DataCell(Text(data['fullName'] ?? 'N/A')),
                                 DataCell(Text(data['email'] ?? 'N/A')),
-                                DataCell(Text(data['County'] ?? 'N/A')),
-                                DataCell(Text(data['Constituency'] ?? 'N/A')),
-                                DataCell(Text(data['Ward'] ?? 'N/A')),
+                                DataCell(Text(data['county'] ?? 'N/A')),
+                                DataCell(Text(data['constituency'] ?? 'N/A')),
+                                DataCell(Text(data['ward'] ?? 'N/A')),
                                 DataCell(Text(data['phoneNumber'] ?? 'N/A')),
+                                DataCell(Text(data['isDisabled'] == true ? 'Disabled' : 'Active')),
                                 DataCell(
                                   PopupMenuButton<String>(
                                     onSelected: (value) {
                                       if (value == 'Delete') {
                                         _confirmDeleteUser(uid);
                                       }
-                                      if (value == 'Reset Password') _resetPassword(data['email'] ?? '');
+                                      if (value == 'Reset Password') {
+                                        _resetPassword(data['email'] ?? '');
+                                      }
                                       if (value == 'Copy UID') {
                                         Clipboard.setData(ClipboardData(text: uid));
                                         ScaffoldMessenger.of(context).showSnackBar(
@@ -476,7 +487,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Deletion'),
+        title: const Text('Confirm Deletion', style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text('Are you sure you want to delete this user? This action cannot be undone.'),
         actions: [
           TextButton(

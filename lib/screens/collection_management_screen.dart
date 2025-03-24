@@ -17,10 +17,28 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
   bool _sortAscending = true;
 
   Future<void> _deleteDocument(String docId) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context); // Capture before async
     try {
-      await FirebaseFirestore.instance.collection(widget.collectionName).doc(docId).delete();
-      if (mounted) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Confirm Deletion', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text('Are you sure you want to delete this document? This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true), // Just signal confirmation
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true && mounted) {
+        await FirebaseFirestore.instance.collection(widget.collectionName).doc(docId).delete();
         scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Document deleted successfully!')));
       }
     } catch (e) {
@@ -42,7 +60,7 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Edit Document $docId'),
+        title: Text('Edit Document $docId', style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -89,7 +107,7 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(data['fullName'] ?? 'User Details'),
+        title: Text(data['fullName'] ?? 'User Details', style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,24 +122,17 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                   ),
                 ),
               const SizedBox(height: 16),
+              Text('Full Name: ${data['fullName'] ?? 'N/A'}'),
               Text('Email: ${data['email'] ?? 'N/A'}'),
-              Text('Farm Location: ${data['farmLocation'] ?? 'N/A'}'),
+              Text('County: ${data['county'] ?? 'N/A'}'),
+              Text('Constituency: ${data['constituency'] ?? 'N/A'}'),
+              Text('Ward: ${data['ward'] ?? 'N/A'}'),
               Text('Phone Number: ${data['phoneNumber'] ?? 'N/A'}'),
-              Text('Gender: ${data['gender'] ?? 'N/A'}'),
-              Text('National ID: ${data['nationalId'] ?? 'N/A'}'),
-              Text('Date of Birth: ${data['dateOfBirth'] ?? 'N/A'}'),
+              Text('Status: ${data['isDisabled'] == true ? 'Disabled' : 'Active'}'),
             ],
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => _disableUser(uid),
-            child: const Text('Disable User'),
-          ),
-          TextButton(
-            onPressed: () => _deleteUser(uid),
-            child: const Text('Delete User'),
-          ),
           TextButton(
             onPressed: () => _resetPassword(data['email'] ?? ''),
             child: const Text('Reset Password'),
@@ -133,32 +144,6 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
         ],
       ),
     );
-  }
-
-  Future<void> _disableUser(String uid) async {
-    try {
-      await FirebaseFirestore.instance.collection('Users').doc(uid).update({'isDisabled': true});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User disabled successfully!')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error disabling user: $e')));
-      }
-    }
-  }
-
-  Future<void> _deleteUser(String uid) async {
-    try {
-      await FirebaseFirestore.instance.collection('Users').doc(uid).delete();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User deleted from Firestore!')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting user: $e')));
-      }
-    }
   }
 
   Future<void> _resetPassword(String email) async {
@@ -179,7 +164,7 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manage ${widget.collectionName}', style: const TextStyle(color: Colors.white)),
+        title: Text('Manage ${widget.collectionName}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color.fromARGB(255, 3, 39, 4),
         foregroundColor: Colors.white,
       ),
@@ -194,13 +179,17 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
+              const Text('Sort by: ', style: TextStyle(fontWeight: FontWeight.bold)),
               DropdownButton<String>(
                 value: _sortField,
                 items: const [
-                  DropdownMenuItem(value: 'fullName', child: Text('Name')),
-                  DropdownMenuItem(value: 'farmLocation', child: Text('Location')),
+                  DropdownMenuItem(value: 'fullName', child: Text('Full Name')),
+                  DropdownMenuItem(value: 'county', child: Text('County')),
+                  DropdownMenuItem(value: 'constituency', child: Text('Constituency')),
+                  DropdownMenuItem(value: 'ward', child: Text('Ward')),
                 ],
                 onChanged: (value) => setState(() => _sortField = value!),
+                style: const TextStyle(color: Colors.black),
               ),
               IconButton(
                 icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
@@ -233,14 +222,15 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                   scrollDirection: Axis.vertical,
                   child: DataTable(
                     columns: const [
-                      DataColumn(label: Text('Name')),
-                      DataColumn(label: Text('User ID')),
-                      DataColumn(label: Text('Email')),
-                      DataColumn(label: Text('Farm Location')),
-                      DataColumn(label: Text('Phone Number')),
-                      DataColumn(label: Text('Gender')),
-                      DataColumn(label: Text('National ID')),
-                      DataColumn(label: Text('Actions')),
+                      DataColumn(label: Text('Profile', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Full Name', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('County', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Constituency', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Ward', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Phone Number', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
                     ],
                     rows: users.map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
@@ -252,13 +242,23 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                           }
                         },
                         cells: [
+                          DataCell(
+                            data['profileImage'] != null
+                                ? Image.memory(
+                                    base64Decode(data['profileImage']),
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.cover,
+                                  )
+                                : const Icon(Icons.person, size: 28),
+                          ),
                           DataCell(Text(data['fullName'] ?? 'N/A')),
-                          DataCell(Text(uid)),
                           DataCell(Text(data['email'] ?? 'N/A')),
-                          DataCell(Text(data['farmLocation'] ?? 'N/A')),
+                          DataCell(Text(data['county'] ?? 'N/A')),
+                          DataCell(Text(data['constituency'] ?? 'N/A')),
+                          DataCell(Text(data['ward'] ?? 'N/A')),
                           DataCell(Text(data['phoneNumber'] ?? 'N/A')),
-                          DataCell(Text(data['gender'] ?? 'N/A')),
-                          DataCell(Text(data['nationalId'] ?? 'N/A')),
+                          DataCell(Text(data['isDisabled'] == true ? 'Disabled' : 'Active')),
                           DataCell(Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
