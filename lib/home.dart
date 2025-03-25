@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:kilimomkononi/models/user_model.dart';
+import 'package:kilimomkononi/screens/Alma%20Dairy/alma_dairy_home.dart';
 import 'package:kilimomkononi/screens/Field%20Data%20Input/field_data_input_home_page.dart';
 import 'package:kilimomkononi/screens/admin/admin_management_screen.dart';
-//import 'package:kilimomkononi/screens/adminsamplescreen.dart';
 import 'package:kilimomkononi/screens/farm_management_screen.dart';
 import 'package:kilimomkononi/screens/farming_tips_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -474,6 +474,9 @@ class _HomePageState extends State<HomePage> {
           }),
           _buildDrawerItem(Icons.supervisor_account, 'Farm Management', () {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const FarmManagementScreen()));
+          }),
+          _buildDrawerItem(Icons.local_drink, 'Alma Dairy', () {
+           Navigator.push(context, MaterialPageRoute(builder: (context) => const AlmaDairyHome()));
           }),
           _buildDrawerItem(Icons.book, 'Manuals', () {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const ManualsScreen()));

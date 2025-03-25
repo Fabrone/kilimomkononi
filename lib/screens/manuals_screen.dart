@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'dart:io';
-import 'dart:typed_data';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:universal_html/html.dart' as html;
+import 'package:http/http.dart' as http;
+import 'dart:io';
 import 'package:kilimomkononi/home.dart';
-
-// Define a model class for manuals
-class Manual {
-  final String title;
-  final String filename;
-
-  const Manual({required this.title, required this.filename});
-}
+import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:permission_handler/permission_handler.dart'; 
+import 'package:open_file/open_file.dart';
 
 class ManualsScreen extends StatefulWidget {
   const ManualsScreen({super.key});
@@ -23,19 +19,9 @@ class ManualsScreen extends StatefulWidget {
 }
 
 class _ManualsScreenState extends State<ManualsScreen> {
-  String? _selectedPdfPath; // For mobile
-// For web
+  String? _selectedPdfPath;
   bool _isLoading = false;
-
-  // Use a const list with a proper model
-  static const List<Manual> _manuals = [
-    Manual(title: 'Carrots Farming', filename: 'Carrots_Farming.pdf'),
-    Manual(title: 'Beans Manual', filename: 'Beans_Manual.pdf'),
-    Manual(title: 'Green Pepper', filename: 'Green_Pepper.pdf'),
-    Manual(title: 'Courgette Farming in Kenya', filename: 'Courgette_farming_in_Kenya.pdf'),
-    Manual(title: 'Onion Growing Manual', filename: 'Onion_Growing_Manual.pdf'),
-    Manual(title: 'Tomato Production', filename: 'Tomato_Production.pdf'),
-  ];
+  String? _downloadedFilePath; 
 
   @override
   void dispose() {
@@ -50,60 +36,89 @@ class _ManualsScreenState extends State<ManualsScreen> {
     }
   }
 
-  Future<void> _loadPdf(Manual manual) async {
-    const String assetBasePath = 'manuals/';
-    final String assetPath = '$assetBasePath${manual.filename}';
-
+  Future<void> _readOnline(String url, String filename) async {
     setState(() => _isLoading = true);
-    _cleanupTemporaryFile();
-
     try {
-      final bytes = (await rootBundle.load(assetPath)).buffer.asUint8List();
-
-      if (!mounted) return;
-
-      if (Platform.isAndroid || Platform.isIOS) {
-        await _handleMobileLoad(manual.filename, bytes);
-      } else {
-        _handleWebLoad(bytes);
-      }
+      final response = await http.get(Uri.parse(url));
+      final bytes = response.bodyBytes;
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/$filename');
+      await file.writeAsBytes(bytes);
+      setState(() => _selectedPdfPath = file.path);
     } catch (e) {
-      debugPrint('Error loading PDF: $e');
-      if (mounted) {
-        _showErrorSnackBar();
-      }
+      _showErrorSnackBar('Error loading manual: $e');
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _downloadFile(String url, String filename) async {
+    setState(() => _isLoading = true);
+    try {
+      // Request storage permission (for Android)
+      if (Platform.isAndroid) {
+        var status = await Permission.storage.request();
+        if (!status.isGranted) {
+          _showErrorSnackBar('Storage permission denied. Cannot download file.');
+          return;
+        }
       }
+
+      // Fetch the file from URL
+      final response = await http.get(Uri.parse(url));
+      final bytes = response.bodyBytes;
+
+      // Save to Downloads directory
+      final dir = Directory('/storage/emulated/0/Download'); // Android Downloads folder
+      if (!await dir.exists()) {
+        await dir.create(recursive: true); // Create if it doesn't exist
+      }
+      final file = File('${dir.path}/$filename');
+      await file.writeAsBytes(bytes);
+
+      // Update the downloaded file path
+      setState(() => _downloadedFilePath = file.path);
+
+      // Show success message and offer to open the file
+      _showSuccessSnackBar('Manual downloaded to $_downloadedFilePath');
+      _openDownloadedFile(); // Optional: Open the file after download
+    } catch (e) {
+      _showErrorSnackBar('Error downloading manual: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _handleMobileLoad(String filename, Uint8List bytes) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$filename');
-    
-    if (!file.existsSync()) {
-      await file.writeAsBytes(bytes, flush: true);
+  void _openDownloadedFile() {
+    if (_downloadedFilePath != null) {
+      OpenFile.open(_downloadedFilePath!); // Opens the file with the default app
     }
-    
-    setState(() => _selectedPdfPath = file.path);
   }
 
-  void _handleWebLoad(Uint8List bytes) {
-    final blob = html.Blob([bytes], 'application/pdf');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    html.window.open(url, '_blank');
-    html.Url.revokeObjectUrl(url);
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _showErrorSnackBar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Failed to load manual'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _sendRequest(String message) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showErrorSnackBar('Please log in to send a request');
+      return;
+    }
+    final userDoc = await FirebaseFirestore.instance.collection('Users').doc(user.uid).get();
+    final fullName = userDoc['fullName'] ?? 'Anonymous';
+    await FirebaseFirestore.instance.collection('ManualRequests').add({
+      'userId': user.uid,
+      'fullName': fullName,
+      'message': message,
+      'timestamp': Timestamp.now(),
+      'responded': false,
+    });
+    _showSuccessSnackBar('Request sent successfully!');
   }
 
   @override
@@ -112,82 +127,172 @@ class _ManualsScreenState extends State<ManualsScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => HomePage()),
-            );
-          },
+          onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomePage())),
         ),
-        title: const Text(
-          'Farming Manuals',
-          style: TextStyle(color: Colors.white), // Added for consistency
-        ),
-        backgroundColor: Colors.green[700],
+        title: const Text('Farming Manuals', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color.fromARGB(255, 3, 39, 4),
         elevation: 2,
       ),
       body: Stack(
         children: [
-          _buildContent(),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-              ),
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildWelcomeAnimation(),
+                _buildManualsList(),
+                _buildRequestSection(),
+                if (_selectedPdfPath != null) _buildPdfViewer(),
+              ],
             ),
+          ),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator(color: Color.fromARGB(255, 3, 39, 4))),
         ],
       ),
     );
   }
 
-  Widget _buildContent() {
-    return Padding(
+  Widget _buildWelcomeAnimation() {
+    return Container(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Expanded(
-            flex: _selectedPdfPath == null ? 1 : 2,
-            child: _buildManualsList(),
+      color: Colors.green[50],
+      child: AnimatedTextKit(
+        animatedTexts: [
+          TyperAnimatedText(
+            'Welcome to Farming Manuals!\nExplore expert-approved guides by agricultural specialists to boost your farming skills.',
+            textStyle: const TextStyle(fontSize: 18, color: Color.fromARGB(255, 3, 39, 4), fontWeight: FontWeight.bold),
+            speed: const Duration(milliseconds: 50),
           ),
-          if (_selectedPdfPath != null && (Platform.isAndroid || Platform.isIOS))
-            Expanded(
-              flex: 3,
-              child: _buildPdfViewer(),
-            ),
         ],
+        totalRepeatCount: 1,
       ),
     );
   }
 
   Widget _buildManualsList() {
-    return Card(
-      elevation: 2,
-      child: ListView.builder(
-        itemCount: _manuals.length,
-        itemBuilder: (context, index) {
-          final manual = _manuals[index];
-          return ListTile(
-            leading: Icon(Icons.book, color: Colors.green[700]),
-            title: Text(manual.title),
-            onTap: () => _loadPdf(manual),
-            hoverColor: Colors.green[50],
-          );
-        },
-      ),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('Manuals').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const CircularProgressIndicator();
+        final manuals = snapshot.data!.docs;
+        return Card(
+          elevation: 2,
+          margin: const EdgeInsets.all(16.0),
+          child: ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: manuals.length,
+            itemBuilder: (context, index) {
+              final manual = manuals[index].data() as Map<String, dynamic>;
+              final title = manual['title'] ?? 'Untitled';
+              final filename = manual['filename'] ?? '';
+              return ListTile(
+                leading: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.visibility, color: Color.fromARGB(255, 3, 39, 4)),
+                      onPressed: () async {
+                        final url = await FirebaseStorage.instance.ref('manuals/$filename').getDownloadURL();
+                        _readOnline(url, filename);
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.download, color: Color.fromARGB(255, 3, 39, 4)),
+                      onPressed: () async {
+                        final url = await FirebaseStorage.instance.ref('manuals/$filename').getDownloadURL();
+                        _downloadFile(url, filename);
+                      },
+                    ),
+                  ],
+                ),
+                title: Text(title),
+                trailing: const Icon(Icons.book, color: Color.fromARGB(255, 3, 39, 4)),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
   Widget _buildPdfViewer() {
     return Card(
       elevation: 2,
-      child: PDFView(
-        filePath: _selectedPdfPath!,
-        enableSwipe: true,
-        swipeHorizontal: true,
-        autoSpacing: false,
-        pageFling: false,
-        onError: (error) => _showErrorSnackBar(),
-        onPageError: (page, error) => _showErrorSnackBar(),
+      margin: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 400,
+            child: PDFView(
+              filePath: _selectedPdfPath!,
+              enableSwipe: true,
+              swipeHorizontal: true,
+              autoSpacing: false,
+              pageFling: false,
+              onError: (error) => _showErrorSnackBar('Error viewing PDF: $error'),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => _downloadFile(_selectedPdfPath!, 'manual_${DateTime.now().millisecondsSinceEpoch}.pdf'),
+            icon: const Icon(Icons.download),
+            label: const Text('Download'),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 3, 39, 4), foregroundColor: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequestSection() {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.all(16.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Need a specific manual not available here? Request Admin to add here:',
+                style: TextStyle(fontSize: 16, color: Color.fromARGB(255, 3, 39, 4)),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.message, color: Color.fromARGB(255, 3, 39, 4)),
+              onPressed: () => _showRequestDialog(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRequestDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Request a Manual'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'Enter your request'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                _sendRequest(controller.text);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Send'),
+          ),
+        ],
       ),
     );
   }

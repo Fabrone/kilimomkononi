@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import 'package:kilimomkononi/screens/admin/filter_users_screen.dart';
 import 'package:logger/logger.dart';
 import 'package:kilimomkononi/screens/collection_management_screen.dart';
 import 'package:kilimomkononi/screens/pest%20management/admin_pest_management_page.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class AdminManagementScreen extends StatefulWidget {
   const AdminManagementScreen({super.key});
@@ -20,11 +20,49 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
   final logger = Logger(printer: PrettyPrinter());
   final TextEditingController _uidController = TextEditingController();
   List<String> _allCollections = [];
+  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
     _fetchCollections();
+    _initializeNotifications();
+    _checkForNewMessages();
+  }
+
+  Future<void> _initializeNotifications() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+    await _notificationsPlugin.initialize(initializationSettings);
+  }
+
+  Future<void> _checkForNewMessages() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('ManualRequests')
+        .where('responded', isEqualTo: false)
+        .get();
+    final count = snapshot.docs.length;
+    if (count > 0) {
+      _showNotification(count);
+    }
+  }
+
+  Future<void> _showNotification(int count) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'new_messages_channel',
+      'New Messages',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+    );
+    const NotificationDetails notificationDetails = NotificationDetails(android: androidDetails);
+    await _notificationsPlugin.show(
+      0,
+      'New Manual Requests',
+      'You have $count new manual requests.',
+      notificationDetails,
+    );
   }
 
   Future<void> _fetchCollections() async {
@@ -173,6 +211,67 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     );
   }
 
+  /*Widget _buildManagementOptions() {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 1.5,
+      children: [
+        _buildOptionCard('Assign Admin', Icons.person_add, () => _showAssignRoleDialog('Admins')),
+        _buildOptionCard('Manage Pests', Icons.bug_report, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminPestManagementPage()))),
+        _buildOptionCard('Add Price Analyst', Icons.monetization_on, () => _showAssignRoleDialog('PriceAnalysts')),
+        _buildOptionCard('Manage Users', Icons.people, () => _showManageUsersScreen()),
+        _buildOptionCard('Filter Users', Icons.filter_list, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FilterUsersScreen()))),
+        _buildOptionCard('Messages',
+          Icons.message,
+          () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MessagesScreen())),
+          badge: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('ManualRequests').where('responded', isEqualTo: false).snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
+              return Positioned(
+                right: 0,
+                top: 0,
+                child: CircleAvatar(
+                  radius: 10,
+                  backgroundColor: Colors.red,
+                  child: Text('${snapshot.data!.docs.length}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOptionCard(String title, IconData icon, VoidCallback? onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: onTap == null ? Colors.grey[300] : Colors.white,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 40, color: const Color.fromARGB(255, 3, 39, 4)),
+                  const SizedBox(height: 8),
+                  Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            if (badge != null) badge,
+          ],
+        ),
+      ),
+    );
+  }*/
   Widget _buildManagementOptions() {
     return GridView.count(
       crossAxisCount: 2,
@@ -185,31 +284,52 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
         _buildOptionCard('Add Price Analyst', Icons.monetization_on, () => _showAssignRoleDialog('PriceAnalysts')),
         _buildOptionCard('Manage Users', Icons.people, () => _showManageUsersScreen()),
         _buildOptionCard('Filter Users', Icons.filter_list, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FilterUsersScreen()))),
+        _buildOptionCard(
+          'Messages',
+          Icons.message,
+          () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MessagesScreen())),
+          badge: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('ManualRequests').where('responded', isEqualTo: false).snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
+              return Positioned(
+                right: 0,
+                top: 0,
+                child: CircleAvatar(
+                  radius: 10,
+                  backgroundColor: Colors.red,
+                  child: Text('${snapshot.data!.docs.length}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildOptionCard(String title, IconData icon, VoidCallback? onTap) {
+  Widget _buildOptionCard(String title, IconData icon, VoidCallback? onTap, {Widget? badge}) {
     return GestureDetector(
       onTap: onTap,
       child: Card(
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         color: onTap == null ? Colors.grey[300] : Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 40, color: const Color.fromARGB(255, 3, 39, 4)),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 40, color: const Color.fromARGB(255, 3, 39, 4)),
+                  const SizedBox(height: 8),
+                  Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
               ),
-            ],
-          ),
+            ),
+            if (badge != null) badge, // Use the badge parameter here
+          ],
         ),
       ),
     );
@@ -500,6 +620,88 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
               Navigator.pop(context);
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MessagesScreen extends StatefulWidget {
+  const MessagesScreen({super.key});
+
+  @override
+  State<MessagesScreen> createState() => _MessagesScreenState();
+}
+
+class _MessagesScreenState extends State<MessagesScreen> {
+  Future<void> _sendResponse(String requestId, String response) async {
+    await FirebaseFirestore.instance.collection('ManualRequests').doc(requestId).update({
+      'response': response,
+      'responded': true,
+      'responseTimestamp': Timestamp.now(),
+    });
+    if (mounted) { 
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Response sent!')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Messages', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color.fromARGB(255, 3, 39, 4),
+        foregroundColor: Colors.white,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('ManualRequests').orderBy('timestamp', descending: true).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          final messages = snapshot.data!.docs;
+          return ListView.builder(
+            itemCount: messages.length,
+            itemBuilder: (context, index) {
+              final message = messages[index];
+              final data = message.data() as Map<String, dynamic>;
+              return ListTile(
+                title: Text('${data['fullName']}: ${data['message']}'),
+                subtitle: Text(data['responded'] ? 'Responded: ${data['response']}' : 'Pending'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.reply, color: Color.fromARGB(255, 3, 39, 4)),
+                  onPressed: () => _showResponseDialog(message.id),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  void _showResponseDialog(String requestId) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Send Response'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'Enter your response'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                _sendResponse(requestId, controller.text);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Send'),
           ),
         ],
       ),
